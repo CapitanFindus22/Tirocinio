@@ -1,0 +1,4 @@
+mount -t sysfs none /sys
+mount -t proc none /proc
+
+/usr/bin/pci_dev.sh
