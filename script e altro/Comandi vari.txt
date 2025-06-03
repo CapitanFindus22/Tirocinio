@@ -1,0 +1,16 @@
+info reg -- Display all the CPU registers
+
+A kernel avviato:
+
+lx_current -- Return current task
+lx_module -- Find module by name and return the module variable
+lx_per_cpu -- Return per-cpu variable
+lx_task_by_pid -- Find Linux task by PID and return the task_struct variable
+lx_thread_info -- Calculate Linux thread_info from task variable
+lx-dmesg -- Print Linux kernel log buffer
+lx-lsmod -- List currently loaded modules
+lx-symbols -- (Re-)load symbols of Linux kernel and currently loaded modules
+
+Per BusyBox:
+
+find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
