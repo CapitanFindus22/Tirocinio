@@ -5,8 +5,7 @@
 
 int main(int argc, char **argv)
 {
-
-    int fd = open("/dev/main", O_WRONLY);
+    int fd = open("/dev/disp", O_WRONLY);
 
     if (fd < 0)
     {
