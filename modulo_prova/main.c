@@ -1,108 +1,69 @@
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/fs.h>
+#include <linux/pci.h>
+#include <linux/delay.h>
 
-// Major device number
-static int major;
+#define V_ID 0x1234
+#define D_ID 0xbeef
 
-// Buffer
-static char buffer[64];
-static size_t buffer_pointer = 0;
+static struct pci_device_id ids[] = {
 
-// Prototypes
-static int mod_open(struct inode *, struct file *);
-static int mod_close(struct inode *, struct file *);
-static ssize_t mod_read(struct file *, char __user *, size_t, loff_t *);
-static ssize_t mod_write(struct file *, const char __user *, size_t, loff_t *);
-
-// File operations
-static struct file_operations fops = {
-
-	.owner = THIS_MODULE,
-	.open = mod_open,
-	.release = mod_close,
-	.read = mod_read,
-	.write = mod_write,
+	{PCI_DEVICE(V_ID,D_ID)},
+	{}
 
 };
+MODULE_DEVICE_TABLE(pci, ids);
 
-static int mod_init(void)
-{
+static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id) {
 
-	// Create a character device
-	// 0 = find free device number
-	major = register_chrdev(0, "prova", &fops);
+	int status;
 
-	if (major < 0)
-	{
-		printk(KERN_ERR "Error while loading\n");
-		return major;
+	void *ptr_bar0, *ptr_bar1;
+
+	status = pcim_enable_device(pdev);
+
+	if(status != 0) {
+
+		printk(KERN_ERR "Could not enable device\n");
+		return status;
+
 	}
 
-	printk(KERN_INFO "%d\n", major);
+	ptr_bar0 = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
+	ptr_bar1 = pcim_iomap(pdev, 1, pci_resource_len(pdev, 1));
+
+	if (!ptr_bar0 || !ptr_bar1)
+	{
+		printk(KERN_ERR "Error while mapping BARs\n");
+		return -ENODEV;
+	}
+
+	iowrite8(15,ptr_bar1);
+
+	printk(KERN_DEBUG "%d\n", ioread8(ptr_bar1));
+
+	iowrite8(90,ptr_bar1+1);
+
+	printk(KERN_DEBUG "%d\n", ioread8(ptr_bar1+1));
+
 	return 0;
-}
-module_init(mod_init);
 
-static void mod_exit(void)
-{
-	unregister_chrdev(major, "prova");
-}
-module_exit(mod_exit);
-
-// Read function
-static ssize_t mod_read(struct file *File, char *user_buffer, size_t count, loff_t *offs)
-{
-	int to_copy, not_copied, delta;
-
-	if (*offs >= buffer_pointer)
-		return 0;
-
-	/* Get amount of data to copy */
-	to_copy = min(count, buffer_pointer);
-
-	/* Copy data to user */
-	not_copied = copy_to_user(user_buffer, buffer, to_copy);
-
-	/* Calculate data */
-	delta = to_copy - not_copied;
-
-	*offs += delta;
-
-	return delta;
 }
 
-// Write function
-static ssize_t mod_write(struct file *File, const char *user_buffer, size_t count, loff_t *offs)
-{
-	int to_copy, not_copied, delta;
+static void dev_remove(struct pci_dev *pdev) {
 
-	/* Get amount of data to copy */
-	to_copy = min(count, sizeof(buffer));
+	printk(KERN_INFO "Removing device\n");
 
-	/* Copy data to user */
-	not_copied = copy_from_user(buffer, user_buffer, to_copy);
-	buffer_pointer = to_copy;
-
-	/* Calculate data */
-	delta = to_copy - not_copied;
-
-	return delta;
 }
 
-static int mod_open(struct inode *device_file, struct file *instance)
-{
-	printk("dev_nr - open was called!\n");
-	return 0;
-}
+static struct pci_driver dev_driver = {
 
-static int mod_close(struct inode *device_file, struct file *instance)
-{
-	printk("dev_nr - close was called!\n");
-	return 0;
-}
+	.name = "custom-dev-driver",
+	.probe = dev_probe,
+	.remove = dev_remove,
+	.id_table = ids,
 
-// Metadata
+};
+module_pci_driver(dev_driver);
+
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("franco");
-MODULE_DESCRIPTION("Ciao infame");
