@@ -8,8 +8,12 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
+#include "exec/memory.h"
+#include <signal.h>
 
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
+
+void *tmp_pointer;
 
 // struct defining/descring the state
 // of the custom pci device.
@@ -20,6 +24,10 @@ typedef struct PciDevState
     MemoryRegion mmio_bar1;
     uint32_t bar0[4];
     uint8_t bar1[4096];
+    dma_addr_t addr;
+    dma_addr_t size;
+    AddressSpace *dma_as;
+
 } PciDevState;
 
 DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
@@ -61,10 +69,20 @@ static const MemoryRegionOps pcidev_bar0_mmio_ops = {
 
 static uint64_t pcidev_bar1_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
+
     PciDevState *pcidev = opaque;
     printf("PCIDEV: BAR1 pcidev_mmio_read() addr %lx size %x \n", addr, size);
 
-    switch (size)
+    uint8_t val = ((uint8_t*)tmp_pointer)[0];
+
+    printf("VALUE: %u\n", val);
+
+    munlock(tmp_pointer,pcidev->size);
+    cpu_physical_memory_unmap(tmp_pointer, pcidev->size, true, pcidev->size);
+
+    return val;
+
+    /*switch (size)
     {
 
     case 1:
@@ -81,16 +99,31 @@ static uint64_t pcidev_bar1_mmio_read(void *opaque, hwaddr addr, unsigned size)
 
     default:
         return 0xffffffffffffffL;
-    }
+    }*/
 }
 
 static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                                    unsigned size)
 {
-    printf("PCIDEV: BAR1 pcidev_mmio_read() addr %lx size %x val %lx \n", addr, size, val);
+
+    printf("PCIDEV: BAR1 pcidev_mmio_write() addr %lx size %x val %lx \n", addr, size, val);
     PciDevState *pcidev = opaque;
 
+    if (size == 8)
+    {
+        pcidev->addr = val;
+        return;
+    }
+
     if (size == 1)
+    {
+        pcidev->size = (uint8_t)val;
+        tmp_pointer = cpu_physical_memory_map(pcidev->addr,&pcidev->size,true);
+        mlock(tmp_pointer,pcidev->size);
+        return;
+    }
+
+    /*if (size == 1)
     {
         pcidev->bar1[addr] = (uint8_t)val;
     }
@@ -108,7 +141,7 @@ static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     {
         uint64_t *ptr = (uint64_t *)&pcidev->bar1[addr];
         *ptr = (uint64_t)val;
-    }
+    }*/
 }
 
 /// ops for the Memory Region.
@@ -130,7 +163,6 @@ static const MemoryRegionOps pcidev_bar1_mmio_ops = {
 static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
 {
     PciDevState *pcidev = PCIDEV(pdev);
-    uint8_t *pci_conf = pdev->config;
 
     /// initial configuration of devices registers.
     memset(pcidev->bar0, 0, 16);
@@ -146,6 +178,8 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     /* BAR 1 */
     memory_region_init_io(&pcidev->mmio_bar1, OBJECT(pcidev), &pcidev_bar1_mmio_ops, pcidev, "pcidev-mmio", 4096);
     pci_register_bar(pdev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &pcidev->mmio_bar1);
+
+    pcidev->dma_as = pci_get_address_space(pdev);
 }
 
 // uninitializing functions performed.
@@ -162,7 +196,6 @@ static void pcidev_instance_init(Object *obj)
 
 static void pcidev_class_init(ObjectClass *class, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(class);
 
     // definition of realize func().
@@ -173,13 +206,6 @@ static void pcidev_class_init(ObjectClass *class, void *data)
     k->device_id = 0xbeef; // our device id, 'beef' hexadecimal
     k->revision = 0x10;
     k->class_id = PCI_CLASS_OTHERS;
-
-    /**
-     * set_bit - Set a bit in memory
-     * @nr: the bit to set
-     * @addr: the address to start counting from
-     */
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static void pci_custom_device_register_types(void)
