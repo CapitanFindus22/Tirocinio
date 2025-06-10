@@ -40,17 +40,29 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	dma_addr_t handle;
+	dma_addr_t handle2;
 
-	char *buff = (char *)dma_alloc_coherent(&pdev->dev, 8, &handle, GFP_KERNEL);
+	char *buff = (char *)dma_alloc_coherent(&pdev->dev, 15, &handle, GFP_KERNEL);
+	char *buff2 = (char *)dma_alloc_coherent(&pdev->dev, 15, &handle2, GFP_KERNEL);
 
-	buff[0] = 42;
+	for (size_t i = 0; i < 15; i++)
+	{
+		buff[i] = i;
+		buff2[i] = i+1;
+	}
 
 	writeq(handle, (__u64 *)ptr_bar1);
-	iowrite8(8, ptr_bar1 + 4);
+	iowrite8(15, ptr_bar1 + 4);
 
 	printk(KERN_INFO "Value: %d", ioread8(ptr_bar1));
 
-	dma_free_coherent(&pdev->dev, 8, buff, handle);
+	writeq(handle2, (__u64 *)ptr_bar1);
+	iowrite8(15, ptr_bar1 + 4);
+
+	printk(KERN_INFO "Value: %d", ioread8(ptr_bar1));
+
+	dma_free_coherent(&pdev->dev, 15, buff, handle);
+	dma_free_coherent(&pdev->dev, 15, buff2, handle2);
 
 	return 0;
 }
