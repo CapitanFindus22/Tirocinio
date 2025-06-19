@@ -6,6 +6,7 @@
 #define V_ID 0x1234
 #define D_ID 0xbeef
 
+//Needed for registration
 static struct pci_device_id ids[] = {
 
 	{PCI_DEVICE(V_ID, D_ID)},
@@ -39,6 +40,12 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
+	if (pci_is_pcie(pdev)) {
+		printk(KERN_INFO "Device is PCIe\n");
+	} else {
+		printk(KERN_WARNING "Device is legacy PCI\n");
+	}
+
 	dma_addr_t handle;
 	dma_addr_t handle2;
 
@@ -48,7 +55,7 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (size_t i = 0; i < 15; i++)
 	{
 		buff[i] = i;
-		buff2[i] = i+1;
+		buff2[i] = i + 1;
 	}
 
 	writeq(handle, (__u64 *)ptr_bar1);
@@ -69,8 +76,7 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 static void dev_remove(struct pci_dev *pdev)
 {
-
-	printk(KERN_INFO "Removing device\n");
+	printk("Removing Device\n");
 }
 
 static struct pci_driver dev_driver = {
@@ -81,6 +87,11 @@ static struct pci_driver dev_driver = {
 	.id_table = ids,
 
 };
+
+//Used to ignore init and exit functions
 module_pci_driver(dev_driver);
 
+//Metadata
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Leonardo Ganzaroli");
+MODULE_DESCRIPTION("Basic module for custom device");

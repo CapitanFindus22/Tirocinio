@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pcie.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "qemu/timer.h"
@@ -13,7 +14,7 @@
 
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
 
-// Struct defining/descring the state
+// Struct defining/describing the state
 // of the custom pci device.
 typedef struct PciDevState
 {
@@ -131,6 +132,26 @@ static const MemoryRegionOps pcidev_bar1_mmio_ops = {
     },
 };
 
+static void pci_print_capabilities(PCIDevice *pdev) {
+    uint8_t cap_ptr = pdev->config[PCI_CAPABILITY_LIST];
+    uint16_t vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    uint16_t device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+
+    printf("PCI capabilities list for device %04x:%04x at bus %d slot %d func %d:\n",
+           vendor_id, device_id,
+           pci_dev_bus_num(pdev), PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+
+    while (cap_ptr != 0) {
+        uint8_t cap_id = pdev->config[cap_ptr];
+        uint8_t next_ptr = pdev->config[cap_ptr + 1];
+
+        printf("  Capability ID 0x%02x at offset 0x%02x, next at 0x%02x\n",
+               cap_id, cap_ptr, next_ptr);
+
+        cap_ptr = next_ptr;
+    }
+}
+
 // implementation of the realize function.
 static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
 {
@@ -150,6 +171,18 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     pci_register_bar(pdev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &pcidev->mmio_bar1);
 
     pcidev->dma_as = pci_get_address_space(pdev);
+
+    pci_config_set_interrupt_pin(pdev->config, 1);
+
+    uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_EXP, 0x00, 0x3C, errp);  
+    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4)); 
+
+    cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
+    pci_set_byte(pdev->config + cap_offset + 2, 0x00);       
+    pci_set_word(pdev->config + cap_offset + 4, 0x0000); 
+    
+    pci_print_capabilities(pdev);
+
 }
 
 static void pci_pcidev_uninit(PCIDevice *pdev)
@@ -172,12 +205,13 @@ static void pcidev_class_init(ObjectClass *class, void *data)
     k->device_id = 0xbeef;
     k->revision = 0x10;
     k->class_id = PCI_CLASS_OTHERS;
+
 }
 
 static void pci_custom_device_register_types(void)
 {
     static InterfaceInfo interfaces[] = {
-        {INTERFACE_CONVENTIONAL_PCI_DEVICE},
+        {INTERFACE_PCIE_DEVICE},
         {},
     };
     static const TypeInfo custom_pci_device_info = {
