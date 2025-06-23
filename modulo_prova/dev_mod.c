@@ -27,7 +27,7 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (status != 0)
 	{
 
-		printk(KERN_ERR "Could not enable device\n");
+		dev_err(&pdev->dev, "Could not enable device\n");
 		return status;
 	}
 
@@ -36,14 +36,20 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (!ptr_bar0 || !ptr_bar1)
 	{
-		printk(KERN_ERR "Error mapping BARs\n");
+		dev_err(&pdev->dev, "Error mapping BARs\n");
 		return -ENODEV;
 	}
 
+	//Set 
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+		dev_err(&pdev->dev, "64-bit DMA not supported\n");
+		return -EIO;
+	}
+
 	if (pci_is_pcie(pdev)) {
-		printk(KERN_INFO "Device is PCIe\n");
+		dev_info(&pdev->dev,  "Device is PCIe\n");
 	} else {
-		printk(KERN_WARNING "Device is legacy PCI\n");
+		dev_warn(&pdev->dev,  "Device is legacy PCI\n");
 	}
 
 	dma_addr_t handle;
