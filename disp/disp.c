@@ -174,13 +174,24 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
 
     pci_config_set_interrupt_pin(pdev->config, 1);
 
+    // Add capabilities
+
+    // Express
     uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_EXP, 0x00, 0x3C, errp);  
     pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4)); 
 
+    // Power management
     cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
     pci_set_byte(pdev->config + cap_offset + 2, 0x00);       
     pci_set_word(pdev->config + cap_offset + 4, 0x0000); 
     
+    // MSI
+    cap_offset = pci_add_capability(pdev, PCI_CAP_ID_MSI, 0x00, 0x10, errp);
+    pci_set_word(pdev->config + cap_offset + 2, 0x0081);
+    pci_set_long(pdev->config + cap_offset + 4, 0xFEE00000);
+    pci_set_long(pdev->config + cap_offset + 8, 0x0);
+    pci_set_word(pdev->config + cap_offset + 12, 0x0);
+
     pci_print_capabilities(pdev);
 
 }
