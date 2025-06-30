@@ -152,6 +152,56 @@ static void pci_print_capabilities(PCIDevice *pdev) {
     }
 }
 
+static void pci_print_ext_capabilities(PCIDevice *pdev) {
+    uint16_t cap_ptr = 0x100;  // Extended capabilities start here
+
+    if (cap_ptr >= PCIE_CONFIG_SPACE_SIZE) {
+        printf("No PCI Express Extended Capabilities found (invalid start offset).\n");
+        return;
+    }
+
+    int count = 0;
+    printf("PCI Express Extended Capabilities list:\n");
+
+    while (cap_ptr != 0) {
+        if (cap_ptr < 0x100 || cap_ptr > PCIE_CONFIG_SPACE_SIZE - 4) {
+            printf("Invalid extended capability pointer: 0x%x\n", cap_ptr);
+            break;
+        }
+
+        uint32_t cap_header = pci_get_long(pdev->config + cap_ptr);
+
+        uint16_t cap_id = cap_header & 0xFFFF;
+        uint8_t version = (cap_header >> 16) & 0xF;
+        uint16_t next_ptr = (cap_header >> 20) & 0xFFF;
+
+        if (cap_id == 0) {
+            // No more capabilities
+            break;
+        }
+
+        printf("  Extended Capability ID 0x%04x (v%d) at offset 0x%x, next 0x%x\n",
+               cap_id, version, cap_ptr, next_ptr);
+
+        count++;
+        if (count > 20) {
+            printf("Too many extended capabilities, possible loop.\n");
+            break;
+        }
+
+        if (next_ptr == 0 || next_ptr <= cap_ptr) {
+            // End of list or invalid pointer
+            break;
+        }
+
+        cap_ptr = next_ptr;
+    }
+
+    if (count == 0) {
+        printf("No PCI Express Extended Capabilities found.\n");
+    }
+}
+
 // implementation of the realize function.
 static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
 {
@@ -193,6 +243,16 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     pci_set_word(pdev->config + cap_offset + 12, 0x0);
 
     pci_print_capabilities(pdev);
+
+    int offset = 0x100;
+
+    pcie_add_capability(pdev, 0x3, 1, offset, 12);
+    pci_set_long(pdev->config + offset + 4, 0x12345678); 
+    pci_set_long(pdev->config + offset + 8, 0x9ABCDEF0); 
+
+    offset = offset + 12;
+
+    pci_print_ext_capabilities(pdev);
 
 }
 
