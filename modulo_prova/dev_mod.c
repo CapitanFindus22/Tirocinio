@@ -6,7 +6,7 @@
 #define V_ID 0x1234
 #define D_ID 0xbeef
 
-//Needed for registration
+// Needed for registration
 static struct pci_device_id ids[] = {
 
 	{PCI_DEVICE(V_ID, D_ID)},
@@ -36,20 +36,23 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (!ptr_bar0 || !ptr_bar1)
 	{
-		dev_err(&pdev->dev, "Error mapping BARs\n");
+		dev_err(&pdev->dev, "Error mapping BAR(s)\n");
 		return -ENODEV;
 	}
 
-	//Set 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
+	{
 		dev_err(&pdev->dev, "64-bit DMA not supported\n");
 		return -EIO;
 	}
 
-	if (pci_is_pcie(pdev)) {
-		dev_info(&pdev->dev,  "Device is PCIe\n");
-	} else {
-		dev_warn(&pdev->dev,  "Device is legacy PCI\n");
+	if (pci_is_pcie(pdev))
+	{
+		dev_info(&pdev->dev, "Device is PCIe\n");
+	}
+	else
+	{
+		dev_warn(&pdev->dev, "Device is legacy PCI\n");
 	}
 
 	dma_addr_t handle;
@@ -94,10 +97,10 @@ static struct pci_driver dev_driver = {
 
 };
 
-//Used to ignore init and exit functions
+// Used to ignore init and exit functions
 module_pci_driver(dev_driver);
 
-//Metadata
+// Metadata
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Leonardo Ganzaroli");
 MODULE_DESCRIPTION("Basic module for custom device");

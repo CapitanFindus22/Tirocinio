@@ -132,7 +132,8 @@ static const MemoryRegionOps pcidev_bar1_mmio_ops = {
     },
 };
 
-static void pci_print_capabilities(PCIDevice *pdev) {
+static void pci_print_capabilities(PCIDevice *pdev)
+{
     uint8_t cap_ptr = pdev->config[PCI_CAPABILITY_LIST];
     uint16_t vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
     uint16_t device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
@@ -141,7 +142,8 @@ static void pci_print_capabilities(PCIDevice *pdev) {
            vendor_id, device_id,
            pci_dev_bus_num(pdev), PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
-    while (cap_ptr != 0) {
+    while (cap_ptr != 0)
+    {
         uint8_t cap_id = pdev->config[cap_ptr];
         uint8_t next_ptr = pdev->config[cap_ptr + 1];
 
@@ -152,10 +154,12 @@ static void pci_print_capabilities(PCIDevice *pdev) {
     }
 }
 
-static void pci_print_ext_capabilities(PCIDevice *pdev) {
-    uint16_t cap_ptr = 0x100;  // Extended capabilities start here
+static void pci_print_ext_capabilities(PCIDevice *pdev)
+{
+    uint16_t cap_ptr = 0x100; // Extended capabilities start here
 
-    if (cap_ptr >= PCIE_CONFIG_SPACE_SIZE) {
+    if (cap_ptr >= PCIE_CONFIG_SPACE_SIZE)
+    {
         printf("No PCI Express Extended Capabilities found (invalid start offset).\n");
         return;
     }
@@ -163,8 +167,10 @@ static void pci_print_ext_capabilities(PCIDevice *pdev) {
     int count = 0;
     printf("PCI Express Extended Capabilities list:\n");
 
-    while (cap_ptr != 0) {
-        if (cap_ptr < 0x100 || cap_ptr > PCIE_CONFIG_SPACE_SIZE - 4) {
+    while (cap_ptr != 0)
+    {
+        if (cap_ptr < 0x100 || cap_ptr > PCIE_CONFIG_SPACE_SIZE - 4)
+        {
             printf("Invalid extended capability pointer: 0x%x\n", cap_ptr);
             break;
         }
@@ -175,7 +181,8 @@ static void pci_print_ext_capabilities(PCIDevice *pdev) {
         uint8_t version = (cap_header >> 16) & 0xF;
         uint16_t next_ptr = (cap_header >> 20) & 0xFFF;
 
-        if (cap_id == 0) {
+        if (cap_id == 0)
+        {
             // No more capabilities
             break;
         }
@@ -184,12 +191,14 @@ static void pci_print_ext_capabilities(PCIDevice *pdev) {
                cap_id, version, cap_ptr, next_ptr);
 
         count++;
-        if (count > 20) {
+        if (count > 20)
+        {
             printf("Too many extended capabilities, possible loop.\n");
             break;
         }
 
-        if (next_ptr == 0 || next_ptr <= cap_ptr) {
+        if (next_ptr == 0 || next_ptr <= cap_ptr)
+        {
             // End of list or invalid pointer
             break;
         }
@@ -197,7 +206,8 @@ static void pci_print_ext_capabilities(PCIDevice *pdev) {
         cap_ptr = next_ptr;
     }
 
-    if (count == 0) {
+    if (count == 0)
+    {
         printf("No PCI Express Extended Capabilities found.\n");
     }
 }
@@ -227,33 +237,32 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     // Add capabilities
 
     // Express
-    uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_EXP, 0x00, 0x3C, errp);  
-    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4)); 
+
+    cap_offset = pcie_endpoint_cap_init(pdev, 0);
+    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4));
 
     // Power management
-    cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
-    pci_set_byte(pdev->config + cap_offset + 2, 0x00);       
-    pci_set_word(pdev->config + cap_offset + 4, 0x0000); 
-    
-    // MSI
-    cap_offset = pci_add_capability(pdev, PCI_CAP_ID_MSI, 0x00, 0x10, errp);
-    pci_set_word(pdev->config + cap_offset + 2, 0x0081);
-    pci_set_long(pdev->config + cap_offset + 4, 0xFEE00000);
-    pci_set_long(pdev->config + cap_offset + 8, 0x0);
-    pci_set_word(pdev->config + cap_offset + 12, 0x0);
+    uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
+    pci_set_byte(pdev->config + cap_offset + 2, 0x00);
+    pci_set_word(pdev->config + cap_offset + 4, 0x0000);
 
-    pci_print_capabilities(pdev);
+    // MSI
+    msi_init(pdev, 0, 1, true, false, errp);
+
+    // Extended
 
     int offset = 0x100;
 
+    // Serial number
     pcie_add_capability(pdev, 0x3, 1, offset, 12);
-    pci_set_long(pdev->config + offset + 4, 0x12345678); 
-    pci_set_long(pdev->config + offset + 8, 0x9ABCDEF0); 
+    pci_set_long(pdev->config + offset + 4, 0x12345678);
+    pci_set_long(pdev->config + offset + 8, 0x9ABCDEF0);
 
-    offset = offset + 12;
+    offset += 12;
+
+    pci_print_capabilities(pdev);
 
     pci_print_ext_capabilities(pdev);
-
 }
 
 static void pci_pcidev_uninit(PCIDevice *pdev)
@@ -276,7 +285,8 @@ static void pcidev_class_init(ObjectClass *class, void *data)
     k->device_id = 0xbeef;
     k->revision = 0x10;
     k->class_id = PCI_CLASS_OTHERS;
-
+    k->subsystem_id = 0x654;
+    k->subsystem_vendor_id = 0xafc;
 }
 
 static void pci_custom_device_register_types(void)
