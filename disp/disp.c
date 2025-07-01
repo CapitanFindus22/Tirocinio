@@ -237,8 +237,9 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     // Add capabilities
 
     // Express
-    /*uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_EXP, 0x00, 0x3C, errp);
-    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4)); */
+
+    cap_offset = pcie_endpoint_cap_init(pdev, 0);
+    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4));
 
     // Power management
     uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
@@ -246,19 +247,13 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     pci_set_word(pdev->config + cap_offset + 4, 0x0000);
 
     // MSI
-    /*cap_offset = pci_add_capability(pdev, PCI_CAP_ID_MSI, 0x00, 0x10, errp);
-    pci_set_word(pdev->config + cap_offset + 2, 0x0081);
-    pci_set_long(pdev->config + cap_offset + 4, 0xFEE00000);
-    pci_set_long(pdev->config + cap_offset + 8, 0x0);
-    pci_set_word(pdev->config + cap_offset + 12, 0x0);*/
-
     msi_init(pdev, 0, 1, true, false, errp);
 
-    cap_offset = pcie_endpoint_cap_init(pdev, 0);
-    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4));
+    // Extended
 
     int offset = 0x100;
 
+    // Serial number
     pcie_add_capability(pdev, 0x3, 1, offset, 12);
     pci_set_long(pdev->config + offset + 4, 0x12345678);
     pci_set_long(pdev->config + offset + 8, 0x9ABCDEF0);
