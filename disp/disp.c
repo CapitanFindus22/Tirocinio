@@ -238,11 +238,11 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
 
     // Express
 
-    cap_offset = pcie_endpoint_cap_init(pdev, 0);
+    uint8_t cap_offset = pcie_endpoint_cap_init(pdev, 0);
     pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4));
 
     // Power management
-    uint8_t cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
+    cap_offset = pci_add_capability(pdev, PCI_CAP_ID_PM, 0x00, 8, errp);
     pci_set_byte(pdev->config + cap_offset + 2, 0x00);
     pci_set_word(pdev->config + cap_offset + 4, 0x0000);
 
