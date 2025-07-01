@@ -10,9 +10,8 @@ if [[ "$1" == "gdb" ]]; then
     echo "[*] Avvio in modalità debug..."
     qemu-system-x86_64 -s -S $MACHINE_OPTS -monitor stdio &
     sleep 1
-    seergdb $VMLINUX --silent target remote:1234 continue
+    seergdb $VMLINUX --silent target remote:1234
 else
     echo "[*] Avvio normale..."
     qemu-system-x86_64 $MACHINE_OPTS
 fi
-
