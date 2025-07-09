@@ -138,15 +138,15 @@ int main(int argc, char **argv) {
     printf("HeaderType:     0x%02x\n", head_type);
     printf("Cap. pointer:   0x%02x\n\n", cap_ptr);
 
-    printf("BAR0:           0x%04x\n", read_u32(fd, 0x10));
-    printf("BAR1:           0x%04x\n", read_u32(fd, 0x14));
+    printf("BAR0:           0x%08x\n", read_u32(fd, 0x10));
+    printf("BAR1:           0x%08x\n", read_u32(fd, 0x14));
 
     if (!(head_type & 1))
     {
-        printf("BAR2:           0x%04x\n", read_u32(fd, 0x18));
-        printf("BAR3:           0x%04x\n", read_u32(fd, 0x20));
-        printf("BAR4:           0x%04x\n", read_u32(fd, 0x24));
-        printf("BAR5:           0x%04x\n", read_u32(fd, 0x28));
+        printf("BAR2:           0x%08x\n", read_u32(fd, 0x18));
+        printf("BAR3:           0x%08x\n", read_u32(fd, 0x20));
+        printf("BAR4:           0x%08x\n", read_u32(fd, 0x24));
+        printf("BAR5:           0x%08x\n", read_u32(fd, 0x28));
     }
 
     printf("\n");
