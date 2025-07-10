@@ -316,12 +316,6 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     uint8_t cap_offset = pcie_endpoint_cap_init(pdev, 0);
     pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4));
 
-    // Velocità e larghezza link massima
-    pci_set_long(pdev->config + cap_offset + PCI_EXP_LNKCAP , PCI_EXP_LNKCAP_SLS_8_0GB | PCI_EXP_LNKSTA_NLW_X2);
-
-    // Velocità e larghezza link effettiva
-    pci_set_word(pdev->config + cap_offset + PCI_EXP_LNKSTA, PCI_EXP_LNKSTA_CLS_5_0GB | (0x4 << PCI_EXP_LNKSTA_NLW_SHIFT));
-
     // Power management
     pci_pm_init(pdev, 0, errp);
 

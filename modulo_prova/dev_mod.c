@@ -12,6 +12,13 @@
 
 int major = 247;
 
+struct dev {
+
+	void *ptr_bar0, *ptr_bar1, *ptr_bar2;
+	struct pci_dev *pdev;
+
+} dev;
+
 // Needed for registration
 static struct pci_device_id ids[] = {
 
@@ -24,11 +31,7 @@ MODULE_DEVICE_TABLE(pci, ids);
 static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 
-	int status;
-
-	void *ptr_bar0, *ptr_bar1, *ptr_bar2;
-
-	status = pcim_enable_device(pdev);
+	int status = pcim_enable_device(pdev);
 
 	if (status != 0)
 	{
@@ -37,11 +40,13 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return status;
 	}
 
-	ptr_bar0 = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
-	ptr_bar1 = pcim_iomap(pdev, 1, pci_resource_len(pdev, 1));
-	ptr_bar2 = pcim_iomap(pdev, 2, pci_resource_len(pdev, 2));
+	dev.pdev = pdev;
 
-	if (!ptr_bar0 || !ptr_bar1 || !ptr_bar2)
+	dev.ptr_bar0 = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
+	dev.ptr_bar1 = pcim_iomap(pdev, 1, pci_resource_len(pdev, 1));
+	dev.ptr_bar2 = pcim_iomap(pdev, 2, pci_resource_len(pdev, 2));
+
+	if (!dev.ptr_bar0 || !dev.ptr_bar1 || !dev.ptr_bar2)
 	{
 		dev_err(&pdev->dev, "Error mapping BAR(s)\n");
 		return -ENODEV;
@@ -62,12 +67,6 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_warn(&pdev->dev, "Device is legacy PCI\n");
 	}
 
-	iowrite32(0x2155325,ptr_bar0);
-	writeq(0x255325,ptr_bar1);
-	iowrite32(0x255325,ptr_bar2);
-
-	dev_info(&pdev->dev, "%u %llu %u\n", ioread32(ptr_bar0), readq(ptr_bar1), ioread32(ptr_bar2));
-
 	return 0;
 }
 
@@ -82,10 +81,22 @@ static int dev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg)
+{
+	iowrite16((uint16_t)arg,dev.ptr_bar0);
+	writeq(arg,dev.ptr_bar1);
+	iowrite8((uint8_t)arg,dev.ptr_bar2);
+
+	dev_info(&dev.pdev->dev, "%u %llu %u\n", 
+		ioread16(dev.ptr_bar0), readq(dev.ptr_bar1), ioread8(dev.ptr_bar2));
+
+		return 0;
+}
 
 static struct file_operations my_fops = {
 	.owner = THIS_MODULE,
 	.open = dev_open,
+	.unlocked_ioctl = dev_ioctl,
 };
 
 static struct pci_driver dev_driver = {
