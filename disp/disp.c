@@ -1,83 +1,14 @@
 #include "qemu/osdep.h"
-#include "qemu/units.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_regs.h"
-#include "hw/hw.h"
 #include "hw/pci/msi.h"
-#include "qemu/timer.h"
-#include "qom/object.h"
-#include "qemu/main-loop.h"
-#include "qemu/module.h"
-#include "qapi/visitor.h"
 #include "exec/memory.h"
-#include <signal.h>
+#include "qom/object.h"
+#include "qemu/module.h"
+#include </home/leonardo/Scrivania/Tesi/Emulatore/library/cmd.h>
 
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
-
-/*
-
-typedef struct {
-    PCIDevice parent;
-    AddressSpace *dma_as;
-    hwaddr dma_addr;   // base address matrice guest
-    uint32_t dma_size; // dimensione matrice (byte)
-} MyDeviceState;
-
-static void mydevice_bar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size) {
-    MyDeviceState *s = opaque;
-
-    switch (addr) {
-        case 0x0:
-            s->dma_addr = val;  // guest scrive base address matrice
-            break;
-        case 0x8:
-            s->dma_size = val;  // guest scrive dimensione matrice
-            break;
-        case 0x10:
-            // trigger di modifica matrice
-            modify_matrix(s);
-            break;
-    }
-}
-
-static void modify_matrix(MyDeviceState *s) {
-    // supponiamo matrice di uint32_t
-    uint32_t *matrix = malloc(s->dma_size);
-    if (!matrix) {
-        printf("Alloc fallita\n");
-        return;
-    }
-
-    // leggo tutta la matrice dalla memoria guest
-    for (size_t i = 0; i < s->dma_size / sizeof(uint32_t); i++) {
-        matrix[i] = address_space_read_u32(s->dma_as, s->dma_addr + i * 4);
-    }
-
-    // modifica matrice, per esempio incremento ogni elemento di 1
-    for (size_t i = 0; i < s->dma_size / sizeof(uint32_t); i++) {
-        matrix[i] += 1;
-    }
-
-    // scrivo la matrice modificata in memoria guest
-    for (size_t i = 0; i < s->dma_size / sizeof(uint32_t); i++) {
-        address_space_write_u32(s->dma_as, s->dma_addr + i * 4, matrix[i]);
-    }
-
-    free(matrix);
-}
-
-static void modify_matrix_inplace(MyDeviceState *s) {
-    // leggi, modifica e scrivi direttamente nella memoria guest
-    for (size_t i = 0; i < s->dma_size / sizeof(uint32_t); i++) {
-        uint32_t val = address_space_read_u32(s->dma_as, s->dma_addr + i * 4);
-        val += 1;  // modifica
-        address_space_write_u32(s->dma_as, s->dma_addr + i * 4, val);
-    }
-}
-
-
-*/
 
 // Struct defining/describing the state
 // of the custom pci device.

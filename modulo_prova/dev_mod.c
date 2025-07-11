@@ -1,11 +1,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
-#include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/cdev.h>
 #include <linux/device.h>
+#include <./../../../../library/cmd.h>
 
 #define V_ID 0x1234
 #define D_ID 0xbeef
@@ -83,14 +81,23 @@ static int dev_open(struct inode *inode, struct file *file)
 
 static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg)
 {
-	iowrite16((uint16_t)arg,dev.ptr_bar0);
-	writeq(arg,dev.ptr_bar1);
-	iowrite8((uint8_t)arg,dev.ptr_bar2);
+	switch (command)
+	{
+	case wr_func:
+		iowrite32((uint32_t)arg,dev.ptr_bar0);
+		break;
+	case wr_addr:
+		writeq(arg,dev.ptr_bar1);
+		break;
+	case wr_args:
+		//iowrite32((uint32_t)arg,dev.ptr_bar0);
+		break;
+	default:
+		break;
+	}
 
-	dev_info(&dev.pdev->dev, "%u %llu %u\n", 
-		ioread16(dev.ptr_bar0), readq(dev.ptr_bar1), ioread8(dev.ptr_bar2));
+	return 0;
 
-		return 0;
 }
 
 static struct file_operations my_fops = {
