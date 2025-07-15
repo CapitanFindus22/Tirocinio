@@ -19,9 +19,13 @@ typedef struct PciDevState
     MemoryRegion mmio_bar1;
     MemoryRegion mmio_bar2;
     uint8_t bar0[4];
-    dma_addr_t bar1;
-    uint8_t bar2[256];
-    AddressSpace *dma_as;
+    hwaddr bar1;
+    uint32_t bar2[64];
+
+    AddressSpace *as;
+    void *addr;
+    hwaddr size;
+
 } PciDevState;
 
 DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
@@ -35,25 +39,27 @@ static uint64_t pcidev_bar0_mmio_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t val = 0;
 
     // Controllo bounds
-    if (addr + size > sizeof(pcidev->bar0)) {
+    if (addr + size > sizeof(pcidev->bar0))
+    {
         printf("BAR0 read out of bounds\n");
         return 0;
     }
 
     // Accedi direttamente a bar0 con cast a puntatore al tipo giusto
-    switch (size) {
-        case 1:
-            val = *(uint8_t *)(pcidev->bar0 + addr);
-            break;
-        case 2:
-            val = *(uint16_t *)(pcidev->bar0 + addr);
-            break;
-        case 4:
-            val = *(uint32_t *)(pcidev->bar0 + addr);
-            break;
-        default:
-            printf("Invalid read size %u\n", size);
-            return 0;
+    switch (size)
+    {
+    case 1:
+        val = *(uint8_t *)(pcidev->bar0 + addr);
+        break;
+    case 2:
+        val = *(uint16_t *)(pcidev->bar0 + addr);
+        break;
+    case 4:
+        val = *(uint32_t *)(pcidev->bar0 + addr);
+        break;
+    default:
+        printf("Invalid read size %u\n", size);
+        return 0;
     }
 
     printf("PCIDEV: BAR0 read addr %lx size %x val %lx\n", addr, size, val);
@@ -64,24 +70,29 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 {
     PciDevState *pcidev = opaque;
 
-    if (addr + size > sizeof(pcidev->bar0)) {
+    printf("%d\n", *(int *)pcidev->addr);
+    printf("%d\n", *((int *)pcidev->addr+1));
+
+    if (addr + size > sizeof(pcidev->bar0))
+    {
         printf("BAR0 write out of bounds\n");
         return;
     }
 
-    switch (size) {
-        case 1:
-            *(uint8_t *)(pcidev->bar0 + addr) = val;
-            break;
-        case 2:
-            *(uint16_t *)(pcidev->bar0 + addr) = val;
-            break;
-        case 4:
-            *(uint32_t *)(pcidev->bar0 + addr) = val;
-            break;
-        default:
-            printf("Invalid write size %u\n", size);
-            return;
+    switch (size)
+    {
+    case 1:
+        *(uint8_t *)(pcidev->bar0 + addr) = val;
+        break;
+    case 2:
+        *(uint16_t *)(pcidev->bar0 + addr) = val;
+        break;
+    case 4:
+        *(uint32_t *)(pcidev->bar0 + addr) = val;
+        break;
+    default:
+        printf("Invalid write size %u\n", size);
+        return;
     }
 
     printf("PCIDEV: BAR0 write addr %lx size %x val %lx\n", addr, size, val);
@@ -107,7 +118,8 @@ static const MemoryRegionOps pcidev_bar0_mmio_ops = {
 static uint64_t pcidev_bar1_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     PciDevState *pcidev = opaque;
-    if (addr != 0 || size != sizeof(dma_addr_t)) {
+    if (addr != 0 || size != sizeof(dma_addr_t))
+    {
         printf("BAR1 read invalid addr/size\n");
         return 0;
     }
@@ -118,11 +130,17 @@ static uint64_t pcidev_bar1_mmio_read(void *opaque, hwaddr addr, unsigned size)
 static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     PciDevState *pcidev = opaque;
-    if (addr != 0 || size != sizeof(dma_addr_t)) {
+    if (addr != 0 || size != sizeof(dma_addr_t))
+    {
         printf("BAR1 write invalid addr/size\n");
         return;
     }
     pcidev->bar1 = val;
+
+    pcidev->size = 4096;
+
+    pcidev->addr = cpu_physical_memory_map(pcidev->bar1, &pcidev->size, true);
+
     printf("PCIDEV: BAR1 write pointer %lx\n", (unsigned long)val);
 }
 
@@ -146,32 +164,16 @@ static const MemoryRegionOps pcidev_bar1_mmio_ops = {
 static uint64_t pcidev_bar2_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     PciDevState *pcidev = opaque;
-    uint64_t val = 0;
 
-    if (addr + size > sizeof(pcidev->bar2)) {
-        printf("BAR2 read out of bounds\n");
+    if (size != 4 || addr % 4 != 0 || addr >= sizeof(pcidev->bar2))
+    {
+        printf("BAR2 read out of bounds or unaligned (addr=%lx size=%u)\n", addr, size);
         return 0;
     }
 
-    switch (size) {
-        case 1:
-            val = *(uint8_t *)(pcidev->bar2 + addr);
-            break;
-        case 2:
-            val = *(uint16_t *)(pcidev->bar2 + addr);
-            break;
-        case 4:
-            val = *(uint32_t *)(pcidev->bar2 + addr);
-            break;
-        case 8:
-            val = *(uint64_t *)(pcidev->bar2 + addr);
-            break;
-        default:
-            printf("Invalid read size %u\n", size);
-            return 0;
-    }
+    uint32_t val = pcidev->bar2[addr / 4];
 
-    printf("PCIDEV: BAR2 read addr %lx size %x val %lx\n", addr, size, val);
+    printf("PCIDEV: BAR2 read addr 0x%lx size %u val 0x%x\n", addr, size, val);
     return val;
 }
 
@@ -179,30 +181,15 @@ static void pcidev_bar2_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 {
     PciDevState *pcidev = opaque;
 
-    if (addr + size > sizeof(pcidev->bar2)) {
-        printf("BAR2 write out of bounds\n");
+    if (size != 4 || addr % 4 != 0 || addr >= sizeof(pcidev->bar2))
+    {
+        printf("BAR2 write out of bounds or unaligned (addr=%lx size=%u)\n", addr, size);
         return;
     }
 
-    switch (size) {
-        case 1:
-            *(uint8_t *)(pcidev->bar2 + addr) = val;
-            break;
-        case 2:
-            *(uint16_t *)(pcidev->bar2 + addr) = val;
-            break;
-        case 4:
-            *(uint32_t *)(pcidev->bar2 + addr) = val;
-            break;
-        case 8:
-            *(uint64_t *)(pcidev->bar2 + addr) = val;
-            break;
-        default:
-            printf("Invalid write size %u\n", size);
-            return;
-    }
+    pcidev->bar2[addr / 4] = val;
 
-    printf("PCIDEV: BAR2 write addr %lx size %x val %lx\n", addr, size, val);
+    printf("PCIDEV: BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
 }
 
 static const MemoryRegionOps pcidev_bar2_mmio_ops = {
@@ -210,12 +197,12 @@ static const MemoryRegionOps pcidev_bar2_mmio_ops = {
     .write = pcidev_bar2_mmio_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
     .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 
@@ -237,9 +224,9 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     memory_region_init_io(&pcidev->mmio_bar2, OBJECT(pcidev), &pcidev_bar2_mmio_ops, pcidev, "pcidev-mmio-2", sizeof(pcidev->bar2));
     pci_register_bar(pdev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &pcidev->mmio_bar2);
 
-    pcidev->dma_as = pci_get_address_space(pdev);
-
     pci_config_set_interrupt_pin(pdev->config, 1);
+
+    pcidev->as = pci_get_address_space(PCI_DEVICE(&pcidev->pdev));
 
     // Add capabilities
 
@@ -263,11 +250,14 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     pci_set_long(pdev->config + offset + 8, 0x9ABCDEF0);
 
     offset += 12;
-
 }
 
 static void pci_pcidev_uninit(PCIDevice *pdev)
 {
+    PciDevState *pcidev = PCIDEV(pdev);
+
+    cpu_physical_memory_unmap(pcidev->addr, pcidev->size, true, pcidev->size);
+
     return;
 }
 
