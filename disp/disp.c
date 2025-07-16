@@ -30,6 +30,39 @@ typedef struct PciDevState
 
 DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
 
+// Prototypes
+void add1(PciDevState*);
+
+void add1(PciDevState *pcidev) {
+
+    mlock(pcidev->addr,pcidev->bar2[0]*pcidev->bar2[1]* sizeof(int));
+
+    printf("%d-%d \n", pcidev->bar2[0], pcidev->bar2[1]);
+
+    for (size_t i = 0; i < pcidev->bar2[0]; i++)
+    {
+        for (size_t j = 0; j < pcidev->bar2[1]; j++)
+        {
+            printf("%d ", ((int*)pcidev->addr)[i * pcidev->bar2[1] + j]);
+            ((int*)pcidev->addr)[i * pcidev->bar2[1] + j] ++;
+        }
+
+        printf("\n");
+        
+    }
+
+    munlock(pcidev->addr,pcidev->bar2[0]*pcidev->bar2[1]* sizeof(int));
+
+    for (short i = 0; i < 64; i++)
+    {
+        pcidev->bar2[i] = 0;
+    }
+
+    msi_notify(&pcidev->pdev,0);
+
+    return;
+}
+
 /*****************************
  *       BAR0 operations     *
  *****************************/
@@ -70,9 +103,6 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 {
     PciDevState *pcidev = opaque;
 
-    printf("%d\n", *(int *)pcidev->addr);
-    printf("%d\n", *((int *)pcidev->addr+1));
-
     if (addr + size > sizeof(pcidev->bar0))
     {
         printf("BAR0 write out of bounds\n");
@@ -88,7 +118,8 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
         *(uint16_t *)(pcidev->bar0 + addr) = val;
         break;
     case 4:
-        *(uint32_t *)(pcidev->bar0 + addr) = val;
+        //*(uint32_t *)(pcidev->bar0 + addr) = val;
+        add1(pcidev);
         break;
     default:
         printf("Invalid write size %u\n", size);

@@ -14,7 +14,7 @@
 #define wr_func     _IOW(DISP_IOCTL_MAGIC, 0, uint32_t)
 #define wr_args     _IOW(DISP_IOCTL_MAGIC, 1, uint32_t)
 #define rst_offset  _IO(DISP_IOCTL_MAGIC, 2)
-#define rd_args     _IO(DISP_IOCTL_MAGIC, 3)
+#define clr_buff  _IO(DISP_IOCTL_MAGIC, 3)
 
 // Device functions
 #define add_1 0

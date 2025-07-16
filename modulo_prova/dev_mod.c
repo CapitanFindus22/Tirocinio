@@ -3,6 +3,7 @@
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/device.h>
+#include <linux/completion.h>
 #include <./../../../../library/cmd.h>
 
 #define V_ID 0x1234
@@ -21,7 +22,18 @@ struct dev {
 	uint32_t *ptr_bar2;
 	struct pci_dev *pdev;
 
+	int irq;
+
 } dev;
+
+static DECLARE_COMPLETION(irq_done);
+
+#define DO_AND_WAIT(cmd)               \
+    do {                                  \
+        reinit_completion(&irq_done);     \
+        cmd;                              \
+        wait_for_completion_interruptible(&irq_done); \
+    } while (0)
 
 // Needed for registration
 static struct pci_device_id ids[] = {
@@ -31,6 +43,14 @@ static struct pci_device_id ids[] = {
 
 };
 MODULE_DEVICE_TABLE(pci, ids);
+
+static irqreturn_t my_irq_handler(int irq, void *dev_id)
+{
+    complete(&irq_done);
+    printk(KERN_INFO "Interrupt ricevuto\n");
+    return IRQ_HANDLED;
+}
+
 
 static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -62,19 +82,22 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -EIO;
 	}
 
-	buf_ptr = dma_alloc_coherent(&pdev->dev, buf_size, &handle, GFP_KERNEL);
+	pci_set_master(pdev);
 
-	printk(KERN_INFO "%llu\n", handle);
+	buf_ptr = dma_alloc_coherent(&pdev->dev, buf_size, &handle, GFP_KERNEL);
 
 	writeq(handle,dev.ptr_bar1);
 
-	if (pci_is_pcie(pdev))
-	{
-		dev_info(&pdev->dev, "Device is PCIe\n");
-	}
-	else
-	{
-		dev_warn(&pdev->dev, "Device is legacy PCI\n");
+	if(pci_alloc_irq_vectors(pdev,1,1,PCI_IRQ_MSI)!=1)
+		return -ENOMSG;
+
+	dev.irq = pci_irq_vector(pdev, 0);
+
+	if (devm_request_irq(&pdev->dev, dev.irq, my_irq_handler,
+                           0, "custom-dev-driver", &dev)) {
+		dev_err(&pdev->dev, "request_irq failed\n");
+		pci_free_irq_vectors(pdev);
+		return -1;
 	}
 
 	return 0;
@@ -82,7 +105,11 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 static void dev_remove(struct pci_dev *pdev)
 {
+	pci_free_irq_vectors(pdev);
+
 	dma_free_coherent(&pdev->dev, buf_size, buf_ptr, handle);
+
+	pci_disable_device(pdev);
 
 	printk("Removing Device\n");
 }
@@ -98,7 +125,7 @@ static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg
 	switch (command)
 	{
 	case wr_func:
-		iowrite32((uint32_t)arg,dev.ptr_bar0);
+		DO_AND_WAIT(iowrite32((uint32_t)arg, dev.ptr_bar0));
 		break;
 	case wr_args:
 		if(b2_offset < 64) {
@@ -109,11 +136,12 @@ static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg
 	case rst_offset:
 		b2_offset = 0;
 		break;
-	case rd_args:
-		for (size_t i = 0; i < b2_offset; i++)
+	case clr_buff:
+		for (int i = 0; i < buf_size; i++)
 		{
-			printk(KERN_INFO "%d at 0x%lu\n", ioread32(dev.ptr_bar2 + i), i*4);
+			*((uint8_t*)buf_ptr + i) = 0;
 		}
+		
 		break;
 	default:
 		break;
@@ -142,6 +170,7 @@ static int dev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 
 static struct file_operations my_fops = {
+
 	.owner = THIS_MODULE,
 	.open = dev_open,
 	.unlocked_ioctl = dev_ioctl,
@@ -154,7 +183,6 @@ static struct pci_driver dev_driver = {
 	.probe = dev_probe,
 	.remove = dev_remove,
 	.id_table = ids,
-
 };
 
 static int __init my_driver_init(void)
