@@ -29,6 +29,9 @@ struct dev
 
 static DECLARE_COMPLETION(irq_done);
 
+/**
+ * Wrapper, wait for a signal from the device
+ */
 #define DO_AND_WAIT(cmd)                              \
 	do                                                \
 	{                                                 \
@@ -48,6 +51,9 @@ static struct pci_device_id ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, ids);
 
+/**
+ * Interrupt handler
+ */
 static irqreturn_t my_irq_handler(int irq, void *dev_id)
 {
 	complete(&irq_done);
@@ -55,6 +61,9 @@ static irqreturn_t my_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/**
+ * Called when a compatible device is found
+ */
 static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 
@@ -89,24 +98,38 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	buf_ptr = dma_alloc_coherent(&pdev->dev, buf_size, &handle, GFP_KERNEL);
 
+	if (!buf_ptr)
+	{
+		dev_err(&pdev->dev, "allocazione fallita\n");
+		return -ENOMEM;
+	}
+
 	writeq(handle, dev.ptr_bar1);
 
 	if (pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI) != 1)
+	{
+		pci_free_irq_vectors(pdev);
+		dma_free_coherent(&pdev->dev, buf_size, buf_ptr, handle);
 		return -ENOMSG;
+	}
 
 	dev.irq = pci_irq_vector(pdev, 0);
 
 	if (devm_request_irq(&pdev->dev, dev.irq, my_irq_handler,
 						 0, "custom-dev-driver", &dev))
 	{
-		dev_err(&pdev->dev, "request_irq failed\n");
+		dev_err(&pdev->dev, "request_irq fallita\n");
 		pci_free_irq_vectors(pdev);
-		return -1;
+		dma_free_coherent(&pdev->dev, buf_size, buf_ptr, handle);
+		return -EBUSY;
 	}
 
 	return 0;
 }
 
+/**
+ * Called when the device is removed
+ */
 static void dev_remove(struct pci_dev *pdev)
 {
 	pci_free_irq_vectors(pdev);
@@ -118,12 +141,18 @@ static void dev_remove(struct pci_dev *pdev)
 	printk("Removing Device\n");
 }
 
+/**
+ * Called when the virtual device is opened
+ */
 static int dev_open(struct inode *inode, struct file *file)
 {
 	printk(KERN_INFO "Device aperto\n");
 	return 0;
 }
 
+/**
+ * Ioctl implementation
+ */
 static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg)
 {
 	switch (command)
@@ -155,6 +184,9 @@ static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg
 	return 0;
 }
 
+/**
+ * Mmap implementation
+ */
 static int dev_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
@@ -189,6 +221,9 @@ static struct pci_driver dev_driver = {
 	.id_table = ids,
 };
 
+/**
+ * Called on module insertion
+ */
 static int __init my_driver_init(void)
 {
 
@@ -205,6 +240,9 @@ static int __init my_driver_init(void)
 	return 0;
 }
 
+/**
+ * Called on module removal
+ */
 static void __exit my_driver_exit(void)
 {
 
