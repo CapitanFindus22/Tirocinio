@@ -4,12 +4,14 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <time.h>
+#include <stdio.h>
 #include "cmd.h"
 
 int file_desc = -1;
 
-// Command queue
+/**
+ * Args of the node
+ */
 typedef union
 {
 
@@ -19,6 +21,9 @@ typedef union
 
 } arg_type;
 
+/**
+ * Nodes of the queue
+ */
 typedef struct node
 {
 
@@ -28,6 +33,9 @@ typedef struct node
 
 } node;
 
+/**
+ * A queue
+ */
 struct queue
 {
 
@@ -46,6 +54,12 @@ void togrey(size_t, size_t);
 void init()
 {
     file_desc = open("/dev/disp", O_RDWR);
+
+    if (file_desc < 0)
+    {
+        perror("Errore nell'apertura");
+        exit(EXIT_FAILURE);
+    }
 }
 
 /**
@@ -53,7 +67,15 @@ void init()
  */
 void *get_buff()
 {
-    return mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, file_desc, 0);
+    void *bfr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, file_desc, 0);
+
+    if (bfr == MAP_FAILED)
+    {
+        perror("Errore mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    return bfr;
 }
 
 /**
@@ -67,13 +89,22 @@ void clear_buff()
 /**
  * Insert a command in the queue
  * @param cmd Defined in cmd.h
- * @param num The number of arguments passed, see the corrisponding function
+ * @param num The number of arguments passed, see the corrisponding functio
+ * @return -1 if an error occured
  */
-void enqueue(int cmd, int num, ...)
+int enqueue(int cmd, int num, ...)
 {
 
     node *new_node = (node *)malloc(sizeof(node));
+
+    if (!new_node)
+    {
+        perror("Errore allocazione nodo");
+        return -1;
+    }
+
     new_node->cmd = cmd;
+    new_node->next = NULL;
 
     va_list valist;
     va_start(valist, num);
@@ -92,7 +123,7 @@ void enqueue(int cmd, int num, ...)
         break;
     }
 
-    new_node->next = NULL;
+    va_end(valist);
 
     if (q.head == NULL)
     {

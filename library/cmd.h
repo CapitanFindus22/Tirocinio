@@ -17,12 +17,13 @@
 #define clr_buff _IO(DISP_IOCTL_MAGIC, 3)
 
 // User functions, each correspond to a function in lib.h
-#define add_1 0 // add1 function
+#define add_1 0   // add1 function
 #define to_grey 1 // to_grey function
 
-typedef struct {
+typedef struct
+{
 
-    unsigned char r,g,b;
+    unsigned char r, g, b;
 
 } RGB;
 

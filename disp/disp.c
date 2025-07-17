@@ -31,21 +31,24 @@ typedef struct PciDevState
 DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
 
 // Prototypes
-void clean(PciDevState*);
-void add1(PciDevState*);
-void togrey(PciDevState*);
+void clean(PciDevState *);
+void add1(PciDevState *);
+void togrey(PciDevState *);
 
-void clean(PciDevState *pcidev) {
+void clean(PciDevState *pcidev)
+{
 
     for (short i = 0; i < 64; i++)
     {
         pcidev->bar2[i] = 0;
     }
 
-    *((uint32_t*)pcidev->bar0) = 0;
-
+    memset(pcidev->bar0, 0, sizeof(pcidev->bar0));
 }
 
+/**
+ * Add 1 to every element of the (int) matrix
+ */
 void add1(PciDevState *pcidev)
 {
 
@@ -71,10 +74,13 @@ void add1(PciDevState *pcidev)
     return;
 }
 
+/**
+ * Transform a RGB matrix in greyscale
+ */
 void togrey(PciDevState *pcidev)
 {
 
-    short r,g,b;
+    short r, g, b;
     short grey;
 
     mlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(RGB));
@@ -89,16 +95,14 @@ void togrey(PciDevState *pcidev)
 
             printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", r, g, b);
 
-            grey = 0.299*r+0.587*g+0.114*b;
+            grey = 0.299 * r + 0.587 * g + 0.114 * b;
 
             ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].r = grey;
             ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].g = grey;
             ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].b = grey;
-
         }
 
         printf("\n");
-
     }
 
     munlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(RGB));
@@ -157,6 +161,7 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
     printf("PCIDEV: BAR0 write addr %lx size %x val %lx\n", addr, size, val);
 }
 
+// Only 4 bytes access
 static const MemoryRegionOps pcidev_bar0_mmio_ops = {
     .read = pcidev_bar0_mmio_read,
     .write = pcidev_bar0_mmio_write,
@@ -200,9 +205,16 @@ static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 
     pcidev->addr = cpu_physical_memory_map(pcidev->bar1, &pcidev->size, true);
 
+    if (!pcidev->addr)
+    {
+        printf("PCIDEV: cpu_physical_memory_map failed\n");
+        return;
+    }
+
     printf("PCIDEV: BAR1 write pointer %lx\n", (unsigned long)val);
 }
 
+// Only 8 bytes access
 static const MemoryRegionOps pcidev_bar1_mmio_ops = {
     .read = pcidev_bar1_mmio_read,
     .write = pcidev_bar1_mmio_write,
@@ -251,6 +263,7 @@ static void pcidev_bar2_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
     printf("PCIDEV: BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
 }
 
+// Only 4 bytes access
 static const MemoryRegionOps pcidev_bar2_mmio_ops = {
     .read = pcidev_bar2_mmio_read,
     .write = pcidev_bar2_mmio_write,
@@ -265,11 +278,14 @@ static const MemoryRegionOps pcidev_bar2_mmio_ops = {
     },
 };
 
-// implementation of the realize function.
+/**
+ * Used to setup an instance
+ */
 static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
 {
     PciDevState *pcidev = PCIDEV(pdev);
 
+    // Setup memory
     memset(pcidev->bar0, 0, sizeof(pcidev->bar0));
     memset(pcidev->bar2, 0, sizeof(pcidev->bar2));
     pcidev->bar1 = 0;
@@ -299,8 +315,6 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     // MSI
     msi_init(pdev, 0, 1, true, false, errp);
 
-    // Extended
-
     int offset = 0x100;
 
     // Serial number
@@ -311,6 +325,17 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     offset += 12;
 }
 
+/**
+ * Called on instantiation
+ */
+static void pcidev_instance_init(Object *obj)
+{
+    return;
+}
+
+/**
+ * Called on de-instantiation
+ */
 static void pci_pcidev_uninit(PCIDevice *pdev)
 {
     PciDevState *pcidev = PCIDEV(pdev);
@@ -320,11 +345,9 @@ static void pci_pcidev_uninit(PCIDevice *pdev)
     return;
 }
 
-static void pcidev_instance_init(Object *obj)
-{
-    return;
-}
-
+/**
+ * Initialize this class
+ */
 static void pcidev_class_init(ObjectClass *class, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(class);
@@ -339,6 +362,9 @@ static void pcidev_class_init(ObjectClass *class, void *data)
     k->subsystem_vendor_id = 0xafc;
 }
 
+/**
+ * Register this device class
+ */
 static void pci_custom_device_register_types(void)
 {
     static InterfaceInfo interfaces[] = {
