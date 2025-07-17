@@ -31,34 +31,81 @@ typedef struct PciDevState
 DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
 
 // Prototypes
+void clean(PciDevState*);
 void add1(PciDevState*);
+void togrey(PciDevState*);
 
-void add1(PciDevState *pcidev) {
-
-    mlock(pcidev->addr,pcidev->bar2[0]*pcidev->bar2[1]* sizeof(int));
-
-    printf("%d-%d \n", pcidev->bar2[0], pcidev->bar2[1]);
-
-    for (size_t i = 0; i < pcidev->bar2[0]; i++)
-    {
-        for (size_t j = 0; j < pcidev->bar2[1]; j++)
-        {
-            printf("%d ", ((int*)pcidev->addr)[i * pcidev->bar2[1] + j]);
-            ((int*)pcidev->addr)[i * pcidev->bar2[1] + j] ++;
-        }
-
-        printf("\n");
-        
-    }
-
-    munlock(pcidev->addr,pcidev->bar2[0]*pcidev->bar2[1]* sizeof(int));
+void clean(PciDevState *pcidev) {
 
     for (short i = 0; i < 64; i++)
     {
         pcidev->bar2[i] = 0;
     }
 
-    msi_notify(&pcidev->pdev,0);
+    *((uint32_t*)pcidev->bar0) = 0;
+
+}
+
+void add1(PciDevState *pcidev)
+{
+
+    mlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(int));
+
+    for (size_t i = 0; i < pcidev->bar2[0]; i++)
+    {
+        for (size_t j = 0; j < pcidev->bar2[1]; j++)
+        {
+            printf("%d ", ((int *)pcidev->addr)[i * pcidev->bar2[1] + j]);
+            ((int *)pcidev->addr)[i * pcidev->bar2[1] + j]++;
+        }
+
+        printf("\n");
+    }
+
+    munlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(int));
+
+    clean(pcidev);
+
+    msi_notify(&pcidev->pdev, 0);
+
+    return;
+}
+
+void togrey(PciDevState *pcidev)
+{
+
+    short r,g,b;
+    short grey;
+
+    mlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(RGB));
+
+    for (size_t i = 0; i < pcidev->bar2[0]; i++)
+    {
+        for (size_t j = 0; j < pcidev->bar2[1]; j++)
+        {
+            r = ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].r;
+            g = ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].g;
+            b = ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].b;
+
+            printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", r, g, b);
+
+            grey = 0.299*r+0.587*g+0.114*b;
+
+            ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].r = grey;
+            ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].g = grey;
+            ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].b = grey;
+
+        }
+
+        printf("\n");
+
+    }
+
+    munlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(RGB));
+
+    clean(pcidev);
+
+    msi_notify(&pcidev->pdev, 0);
 
     return;
 }
@@ -78,22 +125,7 @@ static uint64_t pcidev_bar0_mmio_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    // Accedi direttamente a bar0 con cast a puntatore al tipo giusto
-    switch (size)
-    {
-    case 1:
-        val = *(uint8_t *)(pcidev->bar0 + addr);
-        break;
-    case 2:
-        val = *(uint16_t *)(pcidev->bar0 + addr);
-        break;
-    case 4:
-        val = *(uint32_t *)(pcidev->bar0 + addr);
-        break;
-    default:
-        printf("Invalid read size %u\n", size);
-        return 0;
-    }
+    val = *(uint32_t *)(pcidev->bar0 + addr);
 
     printf("PCIDEV: BAR0 read addr %lx size %x val %lx\n", addr, size, val);
     return val;
@@ -109,21 +141,17 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
         return;
     }
 
-    switch (size)
+    switch ((uint32_t)val)
     {
-    case 1:
-        *(uint8_t *)(pcidev->bar0 + addr) = val;
-        break;
-    case 2:
-        *(uint16_t *)(pcidev->bar0 + addr) = val;
-        break;
-    case 4:
-        //*(uint32_t *)(pcidev->bar0 + addr) = val;
+    case add_1:
         add1(pcidev);
         break;
+    case to_grey:
+        togrey(pcidev);
+        break;
+
     default:
-        printf("Invalid write size %u\n", size);
-        return;
+        break;
     }
 
     printf("PCIDEV: BAR0 write addr %lx size %x val %lx\n", addr, size, val);
@@ -134,11 +162,11 @@ static const MemoryRegionOps pcidev_bar0_mmio_ops = {
     .write = pcidev_bar0_mmio_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 1,
+        .min_access_size = 4,
         .max_access_size = 4,
     },
     .impl = {
-        .min_access_size = 1,
+        .min_access_size = 4,
         .max_access_size = 4,
     },
 };

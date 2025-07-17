@@ -16,7 +16,8 @@ void *buf_ptr;
 dma_addr_t handle;
 size_t buf_size = 4096;
 
-struct dev {
+struct dev
+{
 
 	void *ptr_bar0, *ptr_bar1;
 	uint32_t *ptr_bar2;
@@ -28,29 +29,31 @@ struct dev {
 
 static DECLARE_COMPLETION(irq_done);
 
-#define DO_AND_WAIT(cmd)               \
-    do {                                  \
-        reinit_completion(&irq_done);     \
-        cmd;                              \
-        wait_for_completion_interruptible(&irq_done); \
-    } while (0)
+#define DO_AND_WAIT(cmd)                              \
+	do                                                \
+	{                                                 \
+		reinit_completion(&irq_done);                 \
+		cmd;                                          \
+		wait_for_completion_interruptible(&irq_done); \
+	} while (0)
 
 // Needed for registration
 static struct pci_device_id ids[] = {
 
 	{PCI_DEVICE(V_ID, D_ID)},
-	{0, }
+	{
+		0,
+	}
 
 };
 MODULE_DEVICE_TABLE(pci, ids);
 
 static irqreturn_t my_irq_handler(int irq, void *dev_id)
 {
-    complete(&irq_done);
-    printk(KERN_INFO "Interrupt ricevuto\n");
-    return IRQ_HANDLED;
+	complete(&irq_done);
+	printk(KERN_INFO "Interrupt ricevuto\n");
+	return IRQ_HANDLED;
 }
-
 
 static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -68,7 +71,7 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev.ptr_bar0 = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	dev.ptr_bar1 = pcim_iomap(pdev, 1, pci_resource_len(pdev, 1));
-	dev.ptr_bar2 = (uint32_t*) pcim_iomap(pdev, 2, pci_resource_len(pdev, 2));
+	dev.ptr_bar2 = (uint32_t *)pcim_iomap(pdev, 2, pci_resource_len(pdev, 2));
 
 	if (!dev.ptr_bar0 || !dev.ptr_bar1 || !dev.ptr_bar2)
 	{
@@ -86,15 +89,16 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	buf_ptr = dma_alloc_coherent(&pdev->dev, buf_size, &handle, GFP_KERNEL);
 
-	writeq(handle,dev.ptr_bar1);
+	writeq(handle, dev.ptr_bar1);
 
-	if(pci_alloc_irq_vectors(pdev,1,1,PCI_IRQ_MSI)!=1)
+	if (pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI) != 1)
 		return -ENOMSG;
 
 	dev.irq = pci_irq_vector(pdev, 0);
 
 	if (devm_request_irq(&pdev->dev, dev.irq, my_irq_handler,
-                           0, "custom-dev-driver", &dev)) {
+						 0, "custom-dev-driver", &dev))
+	{
 		dev_err(&pdev->dev, "request_irq failed\n");
 		pci_free_irq_vectors(pdev);
 		return -1;
@@ -128,9 +132,10 @@ static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg
 		DO_AND_WAIT(iowrite32((uint32_t)arg, dev.ptr_bar0));
 		break;
 	case wr_args:
-		if(b2_offset < 64) {
-				iowrite32((uint32_t)arg, dev.ptr_bar2 + b2_offset);
-				b2_offset++;
+		if (b2_offset < 64)
+		{
+			iowrite32((uint32_t)arg, dev.ptr_bar2 + b2_offset);
+			b2_offset++;
 		}
 		break;
 	case rst_offset:
@@ -139,25 +144,25 @@ static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg
 	case clr_buff:
 		for (int i = 0; i < buf_size; i++)
 		{
-			*((uint8_t*)buf_ptr + i) = 0;
+			*((uint8_t *)buf_ptr + i) = 0;
 		}
-		
+
 		break;
 	default:
 		break;
 	}
 
 	return 0;
-
 }
 
 static int dev_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-    size_t size = vma->vm_end - vma->vm_start;
+	size_t size = vma->vm_end - vma->vm_start;
 
-    // Check bounds
-    if (size > buf_size) {
-        return -EINVAL;
+	// Check bounds
+	if (size > buf_size)
+	{
+		return -EINVAL;
 	}
 
 	return remap_pfn_range(
@@ -167,7 +172,6 @@ static int dev_mmap(struct file *filp, struct vm_area_struct *vma)
 		size,
 		vma->vm_page_prot);
 }
-
 
 static struct file_operations my_fops = {
 
@@ -210,9 +214,6 @@ static void __exit my_driver_exit(void)
 
 module_init(my_driver_init);
 module_exit(my_driver_exit);
-
-// Used to ignore init and exit functions
-// module_pci_driver(dev_driver);
 
 // Metadata
 MODULE_LICENSE("GPL");
