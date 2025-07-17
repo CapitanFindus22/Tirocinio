@@ -38,10 +38,7 @@ void togrey(PciDevState *);
 void clean(PciDevState *pcidev)
 {
 
-    for (short i = 0; i < 64; i++)
-    {
-        pcidev->bar2[i] = 0;
-    }
+    memset(pcidev->bar2, 0, sizeof(pcidev->bar2));
 
     memset(pcidev->bar0, 0, sizeof(pcidev->bar0));
 }
