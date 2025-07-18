@@ -37,6 +37,39 @@ int main(int argc, char **argv)
         printf("\n");
     }
 
+    clear_buff();
+
+    int *bfr2 = (int*)bfr;
+
+    for (short i = 0; i < ROWS; i++)
+    {
+        for (short j = 0; j < COLS; j++)
+        {
+            bfr2[i * COLS + j] = rand() % 256;
+        }
+    }
+
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+
+    ex_queue();
+
+    for (short i = 0; i < ROWS; i++)
+    {
+        for (short j = 0; j < COLS; j++)
+        {
+            printf("%d ", bfr2[i * COLS + j]);
+        }
+
+        printf("\n");
+    }
+
     finish((void *)bfr);
 
     return 0;
