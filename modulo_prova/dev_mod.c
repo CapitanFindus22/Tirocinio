@@ -171,11 +171,7 @@ static long int dev_ioctl(struct file *file, unsigned command, unsigned long arg
 		b2_offset = 0;
 		break;
 	case clr_buff:
-		for (int i = 0; i < buf_size; i++)
-		{
-			*((uint8_t *)buf_ptr + i) = 0;
-		}
-
+		memset(buf_ptr, 0, buf_size);
 		break;
 	default:
 		break;
