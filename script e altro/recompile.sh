@@ -2,7 +2,9 @@
 
 build_fs() {
   cd ~/Scrivania/Tesi/Emulatore/library
-  gcc test.c -static -o ../rootfs/test
+  gcc test.c -static -o ../rootfs/test -lm
+  gcc test2.c -static -o ../rootfs/test2 -lm
+  gcc test3.c -static -o ../rootfs/test3
   cd ~/Scrivania/Tesi/Emulatore/rootfs/lib/modules/prova/ || exit 1
   make || exit 1
   cd ../../.. || exit 1

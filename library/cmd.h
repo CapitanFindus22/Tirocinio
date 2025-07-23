@@ -7,6 +7,8 @@
 #include <stdint.h>
 #endif
 
+#define SIZE 2097152
+
 // IOCTL commands
 #define DISP_IOCTL_MAGIC 'D'
 
@@ -18,12 +20,13 @@
 
 // User functions, each correspond to a function in lib.h
 #define add_1 0   // add1 function
-#define to_grey 1 // to_grey function
+#define to_grey 1 // togrey function
+#define conv 2 // convol function
 
 typedef struct
 {
 
-    unsigned char r, g, b;
+    uint8_t r, g, b;
 
 } RGB;
 

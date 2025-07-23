@@ -47,6 +47,7 @@ struct queue
 // Prototypes
 void add1(size_t, size_t);
 void togrey(size_t, size_t);
+void convol(size_t, size_t);
 
 /**
  * Initialize the library
@@ -63,11 +64,11 @@ void init()
 }
 
 /**
- * Get the device buffer
+ * Get the device shared buffer
  */
 void *get_buff()
 {
-    void *bfr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, file_desc, 0);
+    void *bfr = mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, file_desc, 0);
 
     if (bfr == MAP_FAILED)
     {
@@ -89,7 +90,7 @@ void clear_buff()
 /**
  * Insert a command in the queue
  * @param cmd Defined in cmd.h
- * @param num The number of arguments passed, see the corrisponding functio
+ * @param num The number of arguments passed, see the corrisponding function
  * @return -1 if an error occured
  */
 int enqueue(int cmd, int num, ...)
@@ -116,6 +117,10 @@ int enqueue(int cmd, int num, ...)
         new_node->arg[1].s = va_arg(valist, size_t);
         break;
     case to_grey:
+        new_node->arg[0].s = va_arg(valist, size_t);
+        new_node->arg[1].s = va_arg(valist, size_t);
+        break;
+    case conv:
         new_node->arg[0].s = va_arg(valist, size_t);
         new_node->arg[1].s = va_arg(valist, size_t);
         break;
@@ -159,7 +164,7 @@ void clear_queue()
 }
 
 /**
- * Execute all command in the queue
+ * Execute all commands in the queue
  */
 void ex_queue()
 {
@@ -175,6 +180,9 @@ void ex_queue()
             break;
         case to_grey:
             togrey(p->arg[0].s, p->arg[1].s);
+            break;
+        case conv:
+            convol(p->arg[0].s, p->arg[1].s);
             break;
         default:
             break;
@@ -201,7 +209,7 @@ void add1(size_t rows, size_t cols)
 }
 
 /**
- * Add 1 to every cell of the matrix
+ * Transform the RGB matrix in grayscale
  * @param rows The rows of the matrix
  * @param cols The columns of the matrix
  */
@@ -216,7 +224,23 @@ void togrey(size_t rows, size_t cols)
 }
 
 /**
- * Free everything
+ * Convolution fro edge detection
+ * @param rows The rows of the matrix
+ * @param cols The columns of the matrix
+ */
+void convol(size_t rows, size_t cols)
+{
+    togrey(rows, cols);
+
+    ioctl(file_desc, wr_args, rows);
+    ioctl(file_desc, wr_args, cols);
+    ioctl(file_desc, rst_offset, 0);
+
+    ioctl(file_desc, wr_func, conv);
+}
+
+/**
+ * Free and close everything
  */
 void finish(void *ptr)
 {

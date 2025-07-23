@@ -8,6 +8,9 @@
 #include "qemu/module.h"
 #include </home/leonardo/Scrivania/Tesi/Emulatore/library/cmd.h>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include </home/leonardo/Scrivania/Tesi/Emulatore/library/stb_image_write.h>
+
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
 
 // Struct defining/describing the state
@@ -34,6 +37,7 @@ DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
 void clean(PciDevState *);
 void add1(PciDevState *);
 void togrey(PciDevState *);
+void convol(PciDevState *);
 
 void clean(PciDevState *pcidev)
 {
@@ -49,20 +53,28 @@ void clean(PciDevState *pcidev)
 void add1(PciDevState *pcidev)
 {
 
-    mlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(int));
+    size_t rows = pcidev->bar2[0];
+    size_t cols = pcidev->bar2[1];
 
-    for (size_t i = 0; i < pcidev->bar2[0]; i++)
+    int *row;
+
+    mlock(pcidev->addr, rows * cols * sizeof(int));
+
+    for (size_t i = 0; i < rows; i++)
     {
+
+        row = &((int *)pcidev->addr)[i * cols];
+
         for (size_t j = 0; j < pcidev->bar2[1]; j++)
         {
-            printf("%d ", ((int *)pcidev->addr)[i * pcidev->bar2[1] + j]);
-            ((int *)pcidev->addr)[i * pcidev->bar2[1] + j]++;
+            printf("%d ", row[j]);
+            row[j]++;
         }
 
         printf("\n");
     }
 
-    munlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(int));
+    munlock(pcidev->addr, rows * cols * sizeof(int));
 
     clean(pcidev);
 
@@ -77,32 +89,125 @@ void add1(PciDevState *pcidev)
 void togrey(PciDevState *pcidev)
 {
 
-    short r, g, b;
-    short grey;
+    size_t rows = pcidev->bar2[0];
+    size_t cols = pcidev->bar2[1];
 
-    mlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(RGB));
+    RGB *row;
 
-    for (size_t i = 0; i < pcidev->bar2[0]; i++)
+    mlock(pcidev->addr, rows * cols * sizeof(RGB));
+
+    for (size_t i = 0; i < rows; i++)
     {
-        for (size_t j = 0; j < pcidev->bar2[1]; j++)
+
+        row = &((RGB *)pcidev->addr)[i * cols];
+
+        for (size_t j = 0; j < cols; j++)
         {
-            r = ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].r;
-            g = ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].g;
-            b = ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].b;
 
-            printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", r, g, b);
+            printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", row[j].r, row[j].g, row[j].b);
 
-            grey = 0.299 * r + 0.587 * g + 0.114 * b;
-
-            ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].r = grey;
-            ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].g = grey;
-            ((RGB *)pcidev->addr)[i * pcidev->bar2[1] + j].b = grey;
+            row[j].r = (77 * row[j].r + 150 * row[j].g + 29 * row[j].b) >> 8;
+            row[j].g = row[j].r;
+            row[j].b = row[j].r;
         }
 
         printf("\n");
     }
 
-    munlock(pcidev->addr, pcidev->bar2[0] * pcidev->bar2[1] * sizeof(RGB));
+    munlock(pcidev->addr, rows * cols * sizeof(RGB));
+
+    clean(pcidev);
+
+    msi_notify(&pcidev->pdev, 0);
+
+    return;
+}
+
+/**
+ * Convolute the matrix to find edges
+ */
+void convol(PciDevState *pcidev)
+{
+
+    size_t rows = pcidev->bar2[0];
+    size_t cols = pcidev->bar2[1];
+
+    int kernelX[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}};
+
+    int kernelY[3][3] = {
+        {-1, -2, -1},
+        {0, 0, 0},
+        {1, 2, 1}};
+
+    RGB *mtr = malloc(rows * cols * sizeof(RGB));
+
+    if (!mtr)
+    {
+        printf("Malloc failed\n");
+        munlock(pcidev->addr, rows * cols * sizeof(RGB));
+        return;
+    }
+
+    mlock(pcidev->addr, rows * cols * sizeof(RGB));
+
+    RGB *row, *row2, *row3;
+
+    int vx, vy;
+
+    for (size_t i = 1; i < rows - 1; i++)
+    {
+
+        vx = 0;
+        vy = 0;
+
+        row = &((RGB *)pcidev->addr)[(i - 1) * cols];
+        row2 = &((RGB *)pcidev->addr)[i * cols];
+        row3 = &((RGB *)pcidev->addr)[(i + 1) * cols];
+
+        for (size_t j = 1; j < cols - 1; j++)
+        {
+
+            vx = row[j - 1].g * kernelX[0][0] +
+                 row[j].g * kernelX[0][1] +
+                 row[j + 1].g * kernelX[0][2] +
+                 row2[j - 1].g * kernelX[1][0] +
+                 row2[j].g * kernelX[1][1] +
+                 row2[j + 1].g * kernelX[1][2] +
+                 row3[j - 1].g * kernelX[2][0] +
+                 row3[j].g * kernelX[2][1] +
+                 row3[j + 1].g * kernelX[2][2];
+
+            vy = row[j - 1].g * kernelY[0][0] +
+                 row[j].g * kernelY[0][1] +
+                 row[j + 1].g * kernelY[0][2] +
+                 row2[j - 1].g * kernelY[1][0] +
+                 row2[j].g * kernelY[1][1] +
+                 row2[j + 1].g * kernelY[1][2] +
+                 row3[j - 1].g * kernelY[2][0] +
+                 row3[j].g * kernelY[2][1] +
+                 row3[j + 1].g * kernelY[2][2];
+
+            mtr[i * cols + j].g = (unsigned short)sqrt(vx * vx + vy * vy);
+
+            mtr[i * cols + j].b = mtr[i * cols + j].g;
+            mtr[i * cols + j].r = mtr[i * cols + j].g;
+
+            printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", mtr[i * cols + j].b, mtr[i * cols + j].b, mtr[i * cols + j].b);
+        }
+
+        printf("\n");
+    }
+
+    memcpy((RGB *)pcidev->addr, mtr, rows * cols * sizeof(RGB));
+
+    munlock(pcidev->addr, rows * cols * sizeof(RGB));
+
+    stbi_write_bmp("/home/leonardo/Scrivania/out.bmp", cols, rows, 3, mtr);
+
+    free(mtr);
 
     clean(pcidev);
 
@@ -150,7 +255,9 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
     case to_grey:
         togrey(pcidev);
         break;
-
+    case conv:
+        convol(pcidev);
+        break;
     default:
         break;
     }
