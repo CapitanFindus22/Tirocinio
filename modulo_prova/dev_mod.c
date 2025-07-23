@@ -14,7 +14,7 @@ short b2_offset = 0;
 
 void *buf_ptr;
 dma_addr_t handle;
-size_t buf_size = 4096;
+size_t buf_size = SIZE;
 
 struct dev
 {
