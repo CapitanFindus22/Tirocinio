@@ -4,7 +4,7 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/completion.h>
-#include <./../../../../library/cmd.h>
+#include "../library/cmd.h"
 
 #define V_ID 0x1234
 #define D_ID 0xbeef
