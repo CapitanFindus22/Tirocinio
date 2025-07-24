@@ -9,7 +9,7 @@
 #include </home/leonardo/Scrivania/Tesi/Emulatore/library/cmd.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include </home/leonardo/Scrivania/Tesi/Emulatore/library/stb_image_write.h>
+#include "stb_image_write.h"
 
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
 

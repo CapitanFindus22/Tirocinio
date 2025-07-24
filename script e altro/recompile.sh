@@ -5,9 +5,9 @@ build_fs() {
   gcc test.c -static -o ../rootfs/test -lm
   gcc test2.c -static -o ../rootfs/test2 -lm
   gcc test3.c -static -o ../rootfs/test3
-  cd ~/Scrivania/Tesi/Emulatore/rootfs/lib/modules/prova/ || exit 1
+  cd ~/Scrivania/Tesi/Emulatore/modulo || exit 1
   make || exit 1
-  cd ../../.. || exit 1
+  cd ../rootfs || exit 1
   find . -print0 | cpio --null -ov --format=newc | gzip -9 >../rootfs.cpio.gz
 }
 
