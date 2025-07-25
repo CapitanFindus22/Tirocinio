@@ -1,14 +1,14 @@
+#include <x86intrin.h>
 #include "lib.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define ROWS 24
-#define COLS 40
-
 int main(int argc, char **argv)
 {
     init();
+
+    uint64_t start = __rdtsc();
 
     RGB *bfr = (RGB *)get_buff();
 
@@ -17,38 +17,40 @@ int main(int argc, char **argv)
 
     if (img == NULL)
     {
-        printf("Errore nel caricamento dell'immagine: %s\n", stbi_failure_reason());
+        printf("Error loading image: %s\n", stbi_failure_reason());
         return 1;
     }
 
     int img_index;
 
-    for (int i = 0; i < ROWS; i++)
+    for (int i = 0; i < height; i++)
     {
-        for (int j = 0; j < COLS; j++)
+        for (int j = 0; j < width; j++)
         {
             img_index = (i * width + j) * channels;
-            bfr[i * COLS + j].r = img[img_index + 0];
-            bfr[i * COLS + j].g = img[img_index + 1];
-            bfr[i * COLS + j].b = img[img_index + 2];
+            bfr[i * width + j].r = img[img_index + 0];
+            bfr[i * width + j].g = img[img_index + 1];
+            bfr[i * width + j].b = img[img_index + 2];
         }
     }
 
-    togrey(ROWS, COLS);
+    togrey(height, width);
 
-    for (short i = 0; i < ROWS; i++)
+    for (short i = 0; i < height; i++)
     {
-        for (short j = 0; j < COLS; j++)
+        for (short j = 0; j < width; j++)
         {
-            printf("\033[38;5;%dm██\033[0m", 232 + (bfr[i * COLS + j].g * 23) / 255);
+            //printf("\033[38;5;%dm██\033[0m", 232 + (bfr[i * width + j].g * 23) / 255);
         }
 
-        printf("\n");
+        //printf("\n");
     }
 
     stbi_image_free(img);
 
-    finish((void *)bfr);
+    printf("%llu\n", __rdtsc() - start);
+
+    finish();
 
     return 0;
 }

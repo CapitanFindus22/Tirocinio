@@ -1,14 +1,17 @@
-#include "lib.h"
+#include <x86intrin.h>
 #include <time.h>
+#include "lib.h"
 
-#define ROWS 20
-#define COLS 20
+#define ROWS 200
+#define COLS 200
 
 int main(int argc, char **argv)
 {
     srand(time(NULL));
 
     init();
+
+    uint64_t start = __rdtsc();
 
     int *bfr = (int *)get_buff();
 
@@ -35,13 +38,15 @@ int main(int argc, char **argv)
     {
         for (short j = 0; j < COLS; j++)
         {
-            printf("%d ", bfr[i * COLS + j]);
+            //printf("%d ", bfr[i * COLS + j]);
         }
 
-        printf("\n");
+        //printf("\n");
     }
 
-    finish((void *)bfr);
+    printf("%llu\n", __rdtsc() - start);
+
+    finish();
 
     return 0;
 }

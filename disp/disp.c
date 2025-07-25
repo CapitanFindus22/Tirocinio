@@ -33,7 +33,6 @@ typedef struct PciDevState
 
 DECLARE_INSTANCE_CHECKER(PciDevState, PCIDEV, TYPE_PCI_CUSTOM_DEVICE)
 
-// Prototypes
 void clean(PciDevState *);
 void add1(PciDevState *);
 void togrey(PciDevState *);
@@ -65,13 +64,13 @@ void add1(PciDevState *pcidev)
 
         row = &((int *)pcidev->addr)[i * cols];
 
-        for (size_t j = 0; j < pcidev->bar2[1]; j++)
+        for (size_t j = 0; j < cols; j++)
         {
-            printf("%d ", row[j]);
+            //printf("%d ", row[j]);
             row[j]++;
         }
 
-        printf("\n");
+        //printf("\n");
     }
 
     munlock(pcidev->addr, rows * cols * sizeof(int));
@@ -104,14 +103,14 @@ void togrey(PciDevState *pcidev)
         for (size_t j = 0; j < cols; j++)
         {
 
-            printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", row[j].r, row[j].g, row[j].b);
+            //printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", row[j].r, row[j].g, row[j].b);
 
             row[j].r = (77 * row[j].r + 150 * row[j].g + 29 * row[j].b) >> 8;
             row[j].g = row[j].r;
             row[j].b = row[j].r;
         }
 
-        printf("\n");
+        //printf("\n");
     }
 
     munlock(pcidev->addr, rows * cols * sizeof(RGB));
@@ -142,6 +141,8 @@ void convol(PciDevState *pcidev)
         {0, 0, 0},
         {1, 2, 1}};
 
+    mlock(pcidev->addr, rows * cols * sizeof(RGB));
+
     RGB *mtr = malloc(rows * cols * sizeof(RGB));
 
     if (!mtr)
@@ -150,8 +151,6 @@ void convol(PciDevState *pcidev)
         munlock(pcidev->addr, rows * cols * sizeof(RGB));
         return;
     }
-
-    mlock(pcidev->addr, rows * cols * sizeof(RGB));
 
     RGB *row, *row2, *row3;
 
@@ -190,22 +189,22 @@ void convol(PciDevState *pcidev)
                  row3[j].g * kernelY[2][1] +
                  row3[j + 1].g * kernelY[2][2];
 
-            mtr[i * cols + j].g = (unsigned short)sqrt(vx * vx + vy * vy);
+            mtr[i * cols + j].g = (uint8_t)sqrt(vx * vx + vy * vy);
 
             mtr[i * cols + j].b = mtr[i * cols + j].g;
             mtr[i * cols + j].r = mtr[i * cols + j].g;
 
-            printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", mtr[i * cols + j].b, mtr[i * cols + j].b, mtr[i * cols + j].b);
+            // printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", mtr[i * cols + j].b, mtr[i * cols + j].b, mtr[i * cols + j].b);
         }
 
-        printf("\n");
+        // printf("\n");
     }
 
-    memcpy((RGB *)pcidev->addr, mtr, rows * cols * sizeof(RGB));
+    memcpy(pcidev->addr, mtr, rows * cols * sizeof(RGB));
 
     munlock(pcidev->addr, rows * cols * sizeof(RGB));
 
-    stbi_write_bmp("/home/leonardo/Scrivania/out.bmp", cols, rows, 3, mtr);
+    //stbi_write_bmp("/home/leonardo/Scrivania/out.bmp", cols, rows, 3, mtr);
 
     free(mtr);
 
@@ -224,16 +223,15 @@ static uint64_t pcidev_bar0_mmio_read(void *opaque, hwaddr addr, unsigned size)
     PciDevState *pcidev = opaque;
     uint64_t val = 0;
 
-    // Controllo bounds
-    if (addr + size > sizeof(pcidev->bar0))
+    if (addr + size > sizeof(pcidev->bar0) || size != 4 || addr % 4 != 0)
     {
-        printf("BAR0 read out of bounds\n");
+        printf("BAR0 read invalid addr/size (addr=0x%lx size=%u)\n", addr, size);
         return 0;
     }
 
     val = *(uint32_t *)(pcidev->bar0 + addr);
 
-    printf("PCIDEV: BAR0 read addr %lx size %x val %lx\n", addr, size, val);
+    //printf("BAR0 read addr %lx size %x val %lx\n", addr, size, val);
     return val;
 }
 
@@ -241,9 +239,9 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 {
     PciDevState *pcidev = opaque;
 
-    if (addr + size > sizeof(pcidev->bar0))
+    if (addr + size > sizeof(pcidev->bar0) || size != 4 || addr % 4 != 0)
     {
-        printf("BAR0 write out of bounds\n");
+        printf("BAR0 write invalid addr/size (addr=0x%lx size=%u)\n", addr, size);
         return;
     }
 
@@ -262,7 +260,7 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
         break;
     }
 
-    printf("PCIDEV: BAR0 write addr %lx size %x val %lx\n", addr, size, val);
+    //printf("BAR0 write addr %lx size %x val %lx\n", addr, size, val);
 }
 
 // Only 4 bytes access
@@ -288,10 +286,10 @@ static uint64_t pcidev_bar1_mmio_read(void *opaque, hwaddr addr, unsigned size)
     PciDevState *pcidev = opaque;
     if (addr != 0 || size != sizeof(dma_addr_t))
     {
-        printf("BAR1 read invalid addr/size\n");
+        printf("BAR1 read invalid addr/size (addr=0x%lx size=%u)\n", addr, size);
         return 0;
     }
-    printf("PCIDEV: BAR1 read pointer %lx\n", (unsigned long)pcidev->bar1);
+    //printf("BAR1 read pointer %lx\n", (unsigned long)pcidev->bar1);
     return pcidev->bar1;
 }
 
@@ -300,7 +298,7 @@ static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
     PciDevState *pcidev = opaque;
     if (addr != 0 || size != sizeof(dma_addr_t))
     {
-        printf("BAR1 write invalid addr/size\n");
+        printf("BAR1 write invalid addr/size (addr=0x%lx size=%u)\n", addr, size);
         return;
     }
     pcidev->bar1 = val;
@@ -311,11 +309,11 @@ static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 
     if (!pcidev->addr)
     {
-        printf("PCIDEV: cpu_physical_memory_map failed\n");
+        printf("Address translation failed\n");
         return;
     }
 
-    printf("PCIDEV: BAR1 write pointer %lx\n", (unsigned long)val);
+    //printf("BAR1 write pointer %lx\n", (unsigned long)val);
 }
 
 // Only 8 bytes access
@@ -342,13 +340,13 @@ static uint64_t pcidev_bar2_mmio_read(void *opaque, hwaddr addr, unsigned size)
 
     if (size != 4 || addr % 4 != 0 || addr >= sizeof(pcidev->bar2))
     {
-        printf("BAR2 read out of bounds or unaligned (addr=%lx size=%u)\n", addr, size);
+        printf("BAR2 read invalid addr/size (addr=%lx size=%u)\n", addr, size);
         return 0;
     }
 
     uint32_t val = pcidev->bar2[addr / 4];
 
-    printf("PCIDEV: BAR2 read addr 0x%lx size %u val 0x%x\n", addr, size, val);
+    //printf("BAR2 read addr 0x%lx size %u val 0x%x\n", addr, size, val);
     return val;
 }
 
@@ -358,13 +356,13 @@ static void pcidev_bar2_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 
     if (size != 4 || addr % 4 != 0 || addr >= sizeof(pcidev->bar2))
     {
-        printf("BAR2 write out of bounds or unaligned (addr=%lx size=%u)\n", addr, size);
+        printf("BAR2 write invalid addr/size (addr=%lx size=%u)\n", addr, size);
         return;
     }
 
     pcidev->bar2[addr / 4] = val;
 
-    printf("PCIDEV: BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
+    //printf("BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
 }
 
 // Only 4 bytes access
