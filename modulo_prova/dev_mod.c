@@ -57,7 +57,7 @@ MODULE_DEVICE_TABLE(pci, ids);
 static irqreturn_t my_irq_handler(int irq, void *dev_id)
 {
 	complete(&irq_done);
-	printk(KERN_INFO "Interrupt ricevuto\n");
+	//printk(KERN_INFO "Interrupt received\n");
 	return IRQ_HANDLED;
 }
 
@@ -100,7 +100,7 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (!buf_ptr)
 	{
-		dev_err(&pdev->dev, "allocazione fallita\n");
+		dev_err(&pdev->dev, "Buffer allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -118,7 +118,7 @@ static int dev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (devm_request_irq(&pdev->dev, dev.irq, my_irq_handler,
 						 0, "custom-dev-driver", &dev))
 	{
-		dev_err(&pdev->dev, "request_irq fallita\n");
+		dev_err(&pdev->dev, "irq request failed\n");
 		pci_free_irq_vectors(pdev);
 		dma_free_coherent(&pdev->dev, buf_size, buf_ptr, handle);
 		return -EBUSY;
@@ -146,7 +146,7 @@ static void dev_remove(struct pci_dev *pdev)
  */
 static int dev_open(struct inode *inode, struct file *file)
 {
-	printk(KERN_INFO "Device aperto\n");
+	//printk(KERN_INFO "Device opened\n");
 	return 0;
 }
 

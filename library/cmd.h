@@ -18,10 +18,10 @@
 #define rst_offset _IO(DISP_IOCTL_MAGIC, 2)
 #define clr_buff _IO(DISP_IOCTL_MAGIC, 3)
 
-// User functions, each correspond to a function in lib.h
+// User functions, each one corresponds to a function in lib.h
 #define add_1 0   // add1 function
 #define to_grey 1 // togrey function
-#define conv 2 // convol function
+#define conv 2    // convol function
 
 typedef struct
 {

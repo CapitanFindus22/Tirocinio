@@ -5,9 +5,14 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#ifdef NO_DEV
+#include <string.h>
+#include <math.h>
+#endif
 #include "cmd.h"
 
 int file_desc = -1;
+void *bfr;
 
 /**
  * Args of the node
@@ -44,7 +49,6 @@ struct queue
 
 } q;
 
-// Prototypes
 void add1(size_t, size_t);
 void togrey(size_t, size_t);
 void convol(size_t, size_t);
@@ -58,7 +62,7 @@ void init()
 
     if (file_desc < 0)
     {
-        perror("Errore nell'apertura");
+        perror("Error opening device");
         exit(EXIT_FAILURE);
     }
 }
@@ -68,11 +72,11 @@ void init()
  */
 void *get_buff()
 {
-    void *bfr = mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, file_desc, 0);
+    bfr = mmap(NULL, SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, file_desc, 0);
 
     if (bfr == MAP_FAILED)
     {
-        perror("Errore mmap");
+        perror("mmap error");
         exit(EXIT_FAILURE);
     }
 
@@ -100,7 +104,7 @@ int enqueue(int cmd, int num, ...)
 
     if (!new_node)
     {
-        perror("Errore allocazione nodo");
+        perror("Error creating node");
         return -1;
     }
 
@@ -110,7 +114,10 @@ int enqueue(int cmd, int num, ...)
     va_list valist;
     va_start(valist, num);
 
-    switch (cmd)
+    new_node->arg[0].s = va_arg(valist, size_t);
+    new_node->arg[1].s = va_arg(valist, size_t);
+
+    /*switch (cmd)
     {
     case add_1:
         new_node->arg[0].s = va_arg(valist, size_t);
@@ -126,7 +133,7 @@ int enqueue(int cmd, int num, ...)
         break;
     default:
         break;
-    }
+    }*/
 
     va_end(valist);
 
@@ -193,6 +200,148 @@ void ex_queue()
     clear_queue();
 }
 
+#ifdef NO_DEV
+
+/**
+ * Add 1 to every cell of the matrix
+ * @param rows The rows of the matrix
+ * @param cols The columns of the matrix
+ */
+void add1(size_t rows, size_t cols)
+{
+
+    int *mtr = (int *)bfr;
+
+    mlock(bfr, rows * cols * sizeof(int));
+
+    for (size_t i = 0; i < rows; i++)
+    {
+
+        for (size_t j = 0; j < cols; j++)
+        {
+            mtr[i * cols + j]++;
+        }
+    }
+
+    munlock(bfr, rows * cols * sizeof(int));
+
+    return;
+}
+
+/**
+ * Transform the RGB matrix in grayscale
+ * @param rows The rows of the matrix
+ * @param cols The columns of the matrix
+ */
+void togrey(size_t rows, size_t cols)
+{
+
+    RGB *mtr = (RGB *)bfr;
+
+    mlock(bfr, rows * cols * sizeof(RGB));
+
+    for (size_t i = 0; i < rows; i++)
+    {
+
+        for (size_t j = 0; j < cols; j++)
+        {
+
+            mtr[i * cols + j].r = (77 * mtr[i * cols + j].r + 150 * mtr[i * cols + j].g + 29 * mtr[i * cols + j].b) >> 8;
+            mtr[i * cols + j].g = mtr[i * cols + j].r;
+            mtr[i * cols + j].b = mtr[i * cols + j].r;
+        }
+
+    }
+
+    munlock(bfr, rows * cols * sizeof(RGB));
+
+    return;
+}
+
+/**
+ * Convolution for edge detection
+ * @param rows The rows of the matrix
+ * @param cols The columns of the matrix
+ */
+void convol(size_t rows, size_t cols)
+{
+
+    togrey(rows, cols);
+
+    int kernelX[3][3] = {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}};
+
+    int kernelY[3][3] = {
+        {-1, -2, -1},
+        {0, 0, 0},
+        {1, 2, 1}};
+
+    mlock(bfr, rows * cols * sizeof(RGB));
+
+    RGB *ptr = (RGB *)bfr;
+
+    RGB *mtr = malloc(rows * cols * sizeof(RGB));
+
+    if (!mtr)
+    {
+        printf("Malloc failed\n");
+        munlock(bfr, rows * cols * sizeof(RGB));
+        return;
+    }
+
+    int vx, vy;
+
+    for (size_t i = 1; i < rows - 1; i++)
+    {
+
+        vx = 0;
+        vy = 0;
+
+        for (size_t j = 1; j < cols - 1; j++)
+        {
+
+            vx = ptr[(i - 1) * cols + j - 1].g * kernelX[0][0] +
+                 ptr[(i - 1) * cols + j].g * kernelX[0][1] +
+                 ptr[(i - 1) * cols + j + 1].g * kernelX[0][2] +
+                 ptr[i * cols + j - 1].g * kernelX[1][0] +
+                 ptr[i * cols + j].g * kernelX[1][1] +
+                 ptr[i * cols + j + 1].g * kernelX[1][2] +
+                 ptr[(i + 1) * cols + j - 1].g * kernelX[2][0] +
+                 ptr[(i + 1) * cols + j].g * kernelX[2][1] +
+                 ptr[(i + 1) * cols + j + 1].g * kernelX[2][2];
+
+            vy = ptr[(i - 1) * cols + j - 1].g * kernelY[0][0] +
+                 ptr[(i - 1) * cols + j].g * kernelY[0][1] +
+                 ptr[(i - 1) * cols + j + 1].g * kernelY[0][2] +
+                 ptr[i * cols + j - 1].g * kernelY[1][0] +
+                 ptr[i * cols + j].g * kernelY[1][1] +
+                 ptr[i * cols + j + 1].g * kernelY[1][2] +
+                 ptr[(i + 1) * cols + j - 1].g * kernelY[2][0] +
+                 ptr[(i + 1) * cols + j].g * kernelY[2][1] +
+                 ptr[(i + 1) * cols + j + 1].g * kernelY[2][2];
+
+            mtr[i * cols + j].g = (uint8_t)sqrt(vx * vx + vy * vy);
+
+            mtr[i * cols + j].b = mtr[i * cols + j].g;
+            mtr[i * cols + j].r = mtr[i * cols + j].g;
+
+        }
+
+    }
+
+    memcpy(ptr, mtr, rows * cols * sizeof(RGB));
+
+    munlock(bfr, rows * cols * sizeof(RGB));
+
+    free(mtr);
+
+    return;
+}
+
+#else
+
 /**
  * Add 1 to every cell of the matrix
  * @param rows The rows of the matrix
@@ -224,7 +373,7 @@ void togrey(size_t rows, size_t cols)
 }
 
 /**
- * Convolution fro edge detection
+ * Convolution for edge detection
  * @param rows The rows of the matrix
  * @param cols The columns of the matrix
  */
@@ -239,13 +388,15 @@ void convol(size_t rows, size_t cols)
     ioctl(file_desc, wr_func, conv);
 }
 
+#endif
+
 /**
  * Free and close everything
  */
-void finish(void *ptr)
+void finish()
 {
     clear_buff();
     clear_queue();
-    munmap(ptr, 4096);
+    munmap(bfr, SIZE);
     close(file_desc);
 }
