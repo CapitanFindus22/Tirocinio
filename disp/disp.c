@@ -66,11 +66,11 @@ void add1(PciDevState *pcidev)
 
         for (size_t j = 0; j < cols; j++)
         {
-            //printf("%d ", row[j]);
+            // printf("%d ", row[j]);
             row[j]++;
         }
 
-        //printf("\n");
+        // printf("\n");
     }
 
     munlock(pcidev->addr, rows * cols * sizeof(int));
@@ -103,14 +103,14 @@ void togrey(PciDevState *pcidev)
         for (size_t j = 0; j < cols; j++)
         {
 
-            //printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", row[j].r, row[j].g, row[j].b);
+            // printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", row[j].r, row[j].g, row[j].b);
 
             row[j].r = (77 * row[j].r + 150 * row[j].g + 29 * row[j].b) >> 8;
             row[j].g = row[j].r;
             row[j].b = row[j].r;
         }
 
-        //printf("\n");
+        // printf("\n");
     }
 
     munlock(pcidev->addr, rows * cols * sizeof(RGB));
@@ -204,7 +204,7 @@ void convol(PciDevState *pcidev)
 
     munlock(pcidev->addr, rows * cols * sizeof(RGB));
 
-    //stbi_write_bmp("/home/leonardo/Scrivania/out.bmp", cols, rows, 3, mtr);
+    // stbi_write_bmp("/home/leonardo/Scrivania/out.bmp", cols, rows, 3, mtr);
 
     free(mtr);
 
@@ -231,7 +231,7 @@ static uint64_t pcidev_bar0_mmio_read(void *opaque, hwaddr addr, unsigned size)
 
     val = *(uint32_t *)(pcidev->bar0 + addr);
 
-    //printf("BAR0 read addr %lx size %x val %lx\n", addr, size, val);
+    // printf("BAR0 read addr %lx size %x val %lx\n", addr, size, val);
     return val;
 }
 
@@ -260,7 +260,7 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
         break;
     }
 
-    //printf("BAR0 write addr %lx size %x val %lx\n", addr, size, val);
+    // printf("BAR0 write addr %lx size %x val %lx\n", addr, size, val);
 }
 
 // Only 4 bytes access
@@ -289,7 +289,7 @@ static uint64_t pcidev_bar1_mmio_read(void *opaque, hwaddr addr, unsigned size)
         printf("BAR1 read invalid addr/size (addr=0x%lx size=%u)\n", addr, size);
         return 0;
     }
-    //printf("BAR1 read pointer %lx\n", (unsigned long)pcidev->bar1);
+    // printf("BAR1 read pointer %lx\n", (unsigned long)pcidev->bar1);
     return pcidev->bar1;
 }
 
@@ -303,7 +303,7 @@ static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
     }
     pcidev->bar1 = val;
 
-    pcidev->size = 4096;
+    pcidev->size = SIZE;
 
     pcidev->addr = cpu_physical_memory_map(pcidev->bar1, &pcidev->size, true);
 
@@ -313,7 +313,7 @@ static void pcidev_bar1_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
         return;
     }
 
-    //printf("BAR1 write pointer %lx\n", (unsigned long)val);
+    // printf("BAR1 write pointer %lx\n", (unsigned long)val);
 }
 
 // Only 8 bytes access
@@ -346,7 +346,7 @@ static uint64_t pcidev_bar2_mmio_read(void *opaque, hwaddr addr, unsigned size)
 
     uint32_t val = pcidev->bar2[addr / 4];
 
-    //printf("BAR2 read addr 0x%lx size %u val 0x%x\n", addr, size, val);
+    // printf("BAR2 read addr 0x%lx size %u val 0x%x\n", addr, size, val);
     return val;
 }
 
@@ -362,7 +362,7 @@ static void pcidev_bar2_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
 
     pcidev->bar2[addr / 4] = val;
 
-    //printf("BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
+    // printf("BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
 }
 
 // Only 4 bytes access
@@ -408,8 +408,7 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     // Add capabilities
 
     // Express
-    uint8_t cap_offset = pcie_endpoint_cap_init(pdev, 0);
-    pci_set_word(pdev->config + cap_offset + PCI_EXP_FLAGS, (PCI_EXP_TYPE_ENDPOINT << 4));
+    pcie_endpoint_cap_init(pdev, 0);
 
     // Power management
     pci_pm_init(pdev, 0, errp);

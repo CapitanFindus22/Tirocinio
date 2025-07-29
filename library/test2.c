@@ -8,8 +8,6 @@ int main(int argc, char **argv)
 {
     init();
 
-    uint64_t start = __rdtsc();
-
     RGB *bfr = (RGB *)get_buff();
 
     int width, height, channels;
@@ -34,11 +32,13 @@ int main(int argc, char **argv)
         }
     }
 
+    uint64_t start = __rdtsc();
+
     convol(height, width);
 
-    stbi_image_free(img);
-
     printf("%llu\n", __rdtsc() - start);
+
+    stbi_image_free(img);
 
     finish();
 

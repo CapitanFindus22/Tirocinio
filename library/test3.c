@@ -11,8 +11,6 @@ int main(int argc, char **argv)
 
     init();
 
-    uint64_t start = __rdtsc();
-
     int *bfr = (int *)get_buff();
 
     for (short i = 0; i < ROWS; i++)
@@ -22,6 +20,8 @@ int main(int argc, char **argv)
             bfr[i * COLS + j] = rand() % 256;
         }
     }
+
+    uint64_t start = __rdtsc();
 
     if (enqueue(add_1, 2, ROWS, COLS) < 0)
         return -1;

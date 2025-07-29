@@ -8,8 +8,6 @@ int main(int argc, char **argv)
 {
     init();
 
-    uint64_t start = __rdtsc();
-
     RGB *bfr = (RGB *)get_buff();
 
     int width, height, channels;
@@ -34,9 +32,11 @@ int main(int argc, char **argv)
         }
     }
 
+    uint64_t start = __rdtsc();
+
     togrey(height, width);
 
-    for (short i = 0; i < height; i++)
+    /*for (short i = 0; i < height; i++)
     {
         for (short j = 0; j < width; j++)
         {
@@ -44,11 +44,11 @@ int main(int argc, char **argv)
         }
 
         //printf("\n");
-    }
-
-    stbi_image_free(img);
+    }*/
 
     printf("%llu\n", __rdtsc() - start);
+
+    stbi_image_free(img);
 
     finish();
 
