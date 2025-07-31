@@ -419,9 +419,7 @@ static void pci_pcidev_realize(PCIDevice *pdev, Error **errp)
     int offset = 0x100;
 
     // Serial number
-    pcie_add_capability(pdev, 0x3, 1, offset, 12);
-    pci_set_long(pdev->config + offset + 4, 0x12345678);
-    pci_set_long(pdev->config + offset + 8, 0x9ABCDEF0);
+    pcie_dev_ser_num_init(pdev, offset, 0x123456789ABCDEF0);
 
     offset += 12;
 }
