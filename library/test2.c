@@ -11,7 +11,7 @@ int main(int argc, char **argv)
     RGB *bfr = (RGB *)get_buff();
 
     int width, height, channels;
-    unsigned char *img = stbi_load("image4.png", &width, &height, &channels, 0);
+    unsigned char *img = stbi_load("image3.jpg", &width, &height, &channels, 0);
 
     if (img == NULL)
     {
@@ -32,9 +32,14 @@ int main(int argc, char **argv)
         }
     }
 
+    if (enqueue(to_grey, 2, height, width) < 0)
+        return -1;
+    if (enqueue(conv, 2, height, width) < 0)
+        return -1;
+
     uint64_t start = __rdtsc();
 
-    convol(height, width);
+    ex_queue();
 
     printf("%llu\n", __rdtsc() - start);
 

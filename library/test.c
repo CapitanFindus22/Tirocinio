@@ -11,7 +11,7 @@ int main(int argc, char **argv)
     RGB *bfr = (RGB *)get_buff();
 
     int width, height, channels;
-    unsigned char *img = stbi_load("image.png", &width, &height, &channels, 0);
+    unsigned char *img = stbi_load("image4.png", &width, &height, &channels, 0);
 
     if (img == NULL)
     {
