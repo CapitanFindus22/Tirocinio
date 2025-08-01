@@ -6,10 +6,11 @@
 #include "exec/memory.h"
 #include "qom/object.h"
 #include "qemu/module.h"
+#include <math.h>
 #include </home/leonardo/Scrivania/Tesi/Emulatore/library/cmd.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#include "stb_image_write.h"
 
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
 
@@ -143,7 +144,7 @@ void convol(PciDevState *pcidev)
 
     mlock(pcidev->addr, rows * cols * sizeof(RGB));
 
-    RGB *mtr = malloc(rows * cols * sizeof(RGB));
+    RGB *mtr = (RGB *)malloc(rows * cols * sizeof(RGB));
 
     if (!mtr)
     {

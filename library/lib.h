@@ -259,14 +259,12 @@ void togrey(size_t rows, size_t cols)
 }
 
 /**
- * Convolution for edge detection
+ * Convolution for edge detection, need a grayscale matrix
  * @param rows The rows of the matrix
  * @param cols The columns of the matrix
  */
 void convol(size_t rows, size_t cols)
 {
-
-    togrey(rows, cols);
 
     int kernelX[3][3] = {
         {-1, 0, 1},
@@ -282,7 +280,7 @@ void convol(size_t rows, size_t cols)
 
     RGB *ptr = (RGB *)bfr;
 
-    RGB *mtr = malloc(rows * cols * sizeof(RGB));
+    RGB *mtr = (RGB *)malloc(rows * cols * sizeof(RGB));
 
     if (!mtr)
     {
@@ -333,9 +331,9 @@ void convol(size_t rows, size_t cols)
 
     memcpy(ptr, mtr, rows * cols * sizeof(RGB));
 
-    munlock(bfr, rows * cols * sizeof(RGB));
-
     free(mtr);
+
+    munlock(bfr, rows * cols * sizeof(RGB));
 
     return;
 }
@@ -379,7 +377,6 @@ void togrey(size_t rows, size_t cols)
  */
 void convol(size_t rows, size_t cols)
 {
-    togrey(rows, cols);
 
     ioctl(file_desc, wr_args, rows);
     ioctl(file_desc, wr_args, cols);

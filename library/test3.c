@@ -2,8 +2,8 @@
 #include <time.h>
 #include "lib.h"
 
-#define ROWS 200
-#define COLS 200
+#define ROWS 700
+#define COLS 700
 
 int main(int argc, char **argv)
 {
@@ -21,20 +21,20 @@ int main(int argc, char **argv)
         }
     }
 
-    uint64_t start = __rdtsc();
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
+    if (enqueue(add_1, 2, ROWS, COLS) < 0)
+        return -1;
 
-    if (enqueue(add_1, 2, ROWS, COLS) < 0)
-        return -1;
-    if (enqueue(add_1, 2, ROWS, COLS) < 0)
-        return -1;
-    if (enqueue(add_1, 2, ROWS, COLS) < 0)
-        return -1;
-    if (enqueue(add_1, 2, ROWS, COLS) < 0)
-        return -1;
+    uint64_t start = __rdtsc();
 
     ex_queue();
 
-    for (short i = 0; i < ROWS; i++)
+    /*for (short i = 0; i < ROWS; i++)
     {
         for (short j = 0; j < COLS; j++)
         {
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
         }
 
         //printf("\n");
-    }
+    }*/
 
     printf("%llu\n", __rdtsc() - start);
 
