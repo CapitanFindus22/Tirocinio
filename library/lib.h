@@ -6,7 +6,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #ifdef NO_DEV
-#include <string.h>
 #include <math.h>
 #endif
 #include "cmd.h"
@@ -52,6 +51,7 @@ struct queue
 void add1(size_t, size_t);
 void togrey(size_t, size_t);
 void convol(size_t, size_t);
+void *copy(void *, const void *, size_t);
 
 /**
  * Initialize the library
@@ -90,6 +90,16 @@ void clear_buff()
 {
     ioctl(file_desc, clr_buff, 0);
 }
+
+void *copy(void *dest, const void *src, size_t n) {
+    unsigned char *d = dest;
+    const unsigned char *s = src;
+    while (n--) {
+        *d++ = *s++;
+    }
+    return dest;
+}
+
 
 /**
  * Insert a command in the queue
@@ -212,8 +222,6 @@ void add1(size_t rows, size_t cols)
 
     int *mtr = (int *)bfr;
 
-    mlock(bfr, rows * cols * sizeof(int));
-
     for (size_t i = 0; i < rows; i++)
     {
 
@@ -222,8 +230,6 @@ void add1(size_t rows, size_t cols)
             mtr[i * cols + j]++;
         }
     }
-
-    munlock(bfr, rows * cols * sizeof(int));
 
     return;
 }
@@ -238,8 +244,6 @@ void togrey(size_t rows, size_t cols)
 
     RGB *mtr = (RGB *)bfr;
 
-    mlock(bfr, rows * cols * sizeof(RGB));
-
     for (size_t i = 0; i < rows; i++)
     {
 
@@ -250,10 +254,7 @@ void togrey(size_t rows, size_t cols)
             mtr[i * cols + j].g = mtr[i * cols + j].r;
             mtr[i * cols + j].b = mtr[i * cols + j].r;
         }
-
     }
-
-    munlock(bfr, rows * cols * sizeof(RGB));
 
     return;
 }
@@ -276,18 +277,9 @@ void convol(size_t rows, size_t cols)
         {0, 0, 0},
         {1, 2, 1}};
 
-    mlock(bfr, rows * cols * sizeof(RGB));
-
     RGB *ptr = (RGB *)bfr;
 
     RGB *mtr = (RGB *)malloc(rows * cols * sizeof(RGB));
-
-    if (!mtr)
-    {
-        printf("Malloc failed\n");
-        munlock(bfr, rows * cols * sizeof(RGB));
-        return;
-    }
 
     int vx, vy;
 
@@ -324,16 +316,12 @@ void convol(size_t rows, size_t cols)
 
             mtr[i * cols + j].b = mtr[i * cols + j].g;
             mtr[i * cols + j].r = mtr[i * cols + j].g;
-
         }
-
     }
 
-    memcpy(ptr, mtr, rows * cols * sizeof(RGB));
+    copy(ptr, mtr, rows * cols * sizeof(RGB));
 
     free(mtr);
-
-    munlock(bfr, rows * cols * sizeof(RGB));
 
     return;
 }
