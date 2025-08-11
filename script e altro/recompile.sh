@@ -1,38 +1,23 @@
 #!/bin/bash
 
-build_fs() {
-  cd ~/Scrivania/Tesi/Emulatore/library
-  gcc test.c -static -o ../rootfs/test -lm
-  gcc test.c -static -DNO_DEV -o ../rootfs/testb -lm
-  gcc test2.c -static -o ../rootfs/test2 -lm
-  gcc test2.c -static -DNO_DEV -o ../rootfs/test2b -lm
-  gcc test3.c -static -o ../rootfs/test3
-  gcc test3.c -static -DNO_DEV -o ../rootfs/test3b -lm
-  cd ~/Scrivania/Tesi/Emulatore/modulo || exit 1
-  make || exit 1
-  cd ../rootfs || exit 1
-  find . -print0 | cpio --null -ov --format=newc | gzip -9 >../rootfs.cpio.gz
-}
+gcc a.c -static -O2 -o a -lm
+gcc print_reg.c -static -O2 -o ../rootfs/reg
 
-build_qemu() {
-  cp disp/disp.c ~/Scaricati/qemu-10.0.2/hw/pci
-  cd ~/Scaricati/qemu-10.0.2 || exit 1
-  make -j"$(nproc)" || exit 1
-  sudo make install || exit 1
-}
+cd ../library || exit 1
+gcc test.c -static -O2 -o ../rootfs/test -lm
+gcc test.c -static -O2 -DNO_DEV -o ../rootfs/testb -lm
+gcc test2.c -static -O2 -o ../rootfs/test2 -lm
+gcc test2.c -static -O2 -DNO_DEV -o ../rootfs/test2b -lm
+gcc test3.c -static -O2 -o ../rootfs/test3
+gcc test3.c -static -O2 -DNO_DEV -o ../rootfs/test3b -lm
+cd ../modulo || exit 1
+make || exit 1
+cd ../rootfs || exit 1
+find . -print0 | cpio --null -ov --format=newc | gzip -9 >../rootfs.cpio.gz
 
-case "$1" in
-all)
-  build_qemu
-  build_fs
-  ;;
-fs)
-  build_fs
-  ;;
-qemu)
-  build_qemu
-  ;;
-*)
-  exit 1
-  ;;
-esac
+cd ..
+cp disp/disp.c qemu-10.0.2/hw/pci || exit 1
+cd qemu-10.0.2 || exit 1
+make -j"$(nproc)" || exit 1
+sudo make install || exit 1
+

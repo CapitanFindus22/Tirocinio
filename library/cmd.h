@@ -7,7 +7,7 @@
 #include <stdint.h>
 #endif
 
-#define SIZE 2097152
+#define SIZE 4194304
 
 // IOCTL commands
 #define DISP_IOCTL_MAGIC 'D'
@@ -17,6 +17,7 @@
 
 #define rst_offset _IO(DISP_IOCTL_MAGIC, 2)
 #define clr_buff _IO(DISP_IOCTL_MAGIC, 3)
+#define print_time _IO(DISP_IOCTL_MAGIC, 4)
 
 // User functions, each one corresponds to a function in lib.h
 #define add_1 0   // add1 function

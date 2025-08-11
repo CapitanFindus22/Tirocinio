@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <x86intrin.h>
 #ifdef NO_DEV
 #include <math.h>
 #endif
@@ -12,6 +13,8 @@
 
 int file_desc = -1;
 void *bfr;
+
+struct timespec start, end;
 
 /**
  * Args of the node
@@ -91,15 +94,16 @@ void clear_buff()
     ioctl(file_desc, clr_buff, 0);
 }
 
-void *copy(void *dest, const void *src, size_t n) {
+void *copy(void *dest, const void *src, size_t n)
+{
     unsigned char *d = dest;
     const unsigned char *s = src;
-    while (n--) {
+    while (n--)
+    {
         *d++ = *s++;
     }
     return dest;
 }
-
 
 /**
  * Insert a command in the queue
@@ -188,8 +192,11 @@ void ex_queue()
 
     node *p = q.head;
 
+    uint64_t tm = __rdtsc();
+
     while (p != NULL)
     {
+
         switch (p->cmd)
         {
         case add_1:
@@ -206,6 +213,10 @@ void ex_queue()
         }
         p = p->next;
     }
+
+    //printf("%f\n", (__rdtsc() - tm) / 2.6e9);
+
+    ioctl(file_desc, print_time, (int)(1000000 * (__rdtsc() - tm) / 2.6e9));
 
     clear_queue();
 }

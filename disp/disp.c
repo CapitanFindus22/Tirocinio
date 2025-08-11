@@ -7,10 +7,11 @@
 #include "qom/object.h"
 #include "qemu/module.h"
 #include <math.h>
-#include </home/leonardo/Scrivania/Tesi/Emulatore/library/cmd.h>
+#include <x86intrin.h>
+#include "../library/cmd.h"
 
-//#define STB_IMAGE_WRITE_IMPLEMENTATION
-//#include "stb_image_write.h"
+// #define STB_IMAGE_WRITE_IMPLEMENTATION
+// #include "stb_image_write.h"
 
 #define TYPE_PCI_CUSTOM_DEVICE "disp"
 
@@ -238,6 +239,8 @@ static uint64_t pcidev_bar0_mmio_read(void *opaque, hwaddr addr, unsigned size)
 
 static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
+    //uint64_t st = __rdtsc();
+
     PciDevState *pcidev = opaque;
 
     if (addr + size > sizeof(pcidev->bar0) || size != 4 || addr % 4 != 0)
@@ -260,6 +263,8 @@ static void pcidev_bar0_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
     default:
         break;
     }
+
+    //printf("%f\n", (__rdtsc() - st) / 2.6e9);
 
     // printf("BAR0 write addr %lx size %x val %lx\n", addr, size, val);
 }
@@ -339,7 +344,7 @@ static uint64_t pcidev_bar2_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     PciDevState *pcidev = opaque;
 
-    if (size != 4 || addr % 4 != 0 || addr >= sizeof(pcidev->bar2))
+    if ((size != 4 && size != 8) || addr % 4 != 0 || addr >= sizeof(pcidev->bar2))
     {
         printf("BAR2 read invalid addr/size (addr=%lx size=%u)\n", addr, size);
         return 0;
@@ -361,7 +366,7 @@ static void pcidev_bar2_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsi
         return;
     }
 
-    pcidev->bar2[addr / 4] = val;
+    pcidev->bar2[addr / 4] = (uint32_t)val;
 
     // printf("BAR2 write addr 0x%lx size %u val 0x%lx\n", addr, size, val);
 }

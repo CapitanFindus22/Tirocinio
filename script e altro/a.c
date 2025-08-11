@@ -2,9 +2,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
+#include <time.h>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "library/stb_image.h"
+#include "../library/stb_image.h"
 
 typedef struct
 {
@@ -13,10 +14,12 @@ typedef struct
 
 } RGB;
 
-void *copy(void *dest, const void *src, size_t n) {
+void *copy(void *dest, const void *src, size_t n)
+{
     unsigned char *d = dest;
     const unsigned char *s = src;
-    while (n--) {
+    while (n--)
+    {
         *d++ = *s++;
     }
     return dest;
@@ -26,7 +29,7 @@ int main()
 {
 
     int width, height, channels;
-    unsigned char *img = stbi_load("rootfs/image4.png", &width, &height, &channels, 0);
+    unsigned char *img = stbi_load("../rootfs/image.png", &width, &height, &channels, 0);
 
     if (img == NULL)
     {
@@ -49,7 +52,7 @@ int main()
         }
     }
 
-    uint64_t start = __rdtsc();
+    uint64_t tm = __rdtsc();
 
     for (size_t i = 0; i < height; i++)
     {
@@ -62,8 +65,6 @@ int main()
             bfr[i * width + j].b = bfr[i * width + j].r;
         }
     }
-
-    printf("%llu\n", __rdtsc() - start);
 
     int kernelX[3][3] = {
         {-1, 0, 1},
@@ -119,7 +120,7 @@ int main()
 
     free(mtr);
 
-    printf("%llu\n", __rdtsc() - start);
+    printf("%f\n", (__rdtsc() - tm) / 2.6e9);
 
     stbi_image_free(img);
 

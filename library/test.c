@@ -1,4 +1,3 @@
-#include <x86intrin.h>
 #include "lib.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -11,7 +10,7 @@ int main(int argc, char **argv)
     RGB *bfr = (RGB *)get_buff();
 
     int width, height, channels;
-    unsigned char *img = stbi_load("image4.png", &width, &height, &channels, 0);
+    unsigned char *img = stbi_load("image3.png", &width, &height, &channels, 0);
 
     if (img == NULL)
     {
@@ -32,21 +31,20 @@ int main(int argc, char **argv)
         }
     }
 
-    uint64_t start = __rdtsc();
+    if (enqueue(to_grey, 2, height, width) < 0)
+        return -1;
 
-    togrey(height, width);
+    ex_queue();
 
     /*for (short i = 0; i < height; i++)
     {
         for (short j = 0; j < width; j++)
         {
-            //printf("\033[38;5;%dm██\033[0m", 232 + (bfr[i * width + j].g * 23) / 255);
+            printf("\033[38;5;%dm██\033[0m", 232 + (bfr[i * width + j].g * 23) / 255);
         }
 
-        //printf("\n");
+        printf("\n");
     }*/
-
-    printf("%llu\n", __rdtsc() - start);
 
     stbi_image_free(img);
 
