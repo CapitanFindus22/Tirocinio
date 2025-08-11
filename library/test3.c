@@ -1,4 +1,3 @@
-#include <x86intrin.h>
 #include <time.h>
 #include "lib.h"
 
@@ -30,8 +29,6 @@ int main(int argc, char **argv)
     if (enqueue(add_1, 2, ROWS, COLS) < 0)
         return -1;
 
-    uint64_t start = __rdtsc();
-
     ex_queue();
 
     /*for (short i = 0; i < ROWS; i++)
@@ -43,8 +40,6 @@ int main(int argc, char **argv)
 
         //printf("\n");
     }*/
-
-    printf("%llu\n", __rdtsc() - start);
 
     finish();
 
